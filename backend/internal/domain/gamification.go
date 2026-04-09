@@ -17,10 +17,10 @@ var (
 
 // XP Reward Constants
 const (
-	XPRewardTodoCompleted       = 10
-	XPRewardStreakBonus7Days    = 50
-	XPRewardStreakBonus30Days   = 200
-	XPRewardPerfectDay          = 25
+	XPRewardTodoCompleted     = 10
+	XPRewardStreakBonus7Days  = 50
+	XPRewardStreakBonus30Days = 200
+	XPRewardPerfectDay        = 25
 )
 
 var LevelCurve = []int{
@@ -38,31 +38,31 @@ const MaxLevel = 8
 
 // UserStats represents a user's gamification statistics
 type UserStats struct {
-	Points            int       `json:"points"`
-	Level             int       `json:"level"`
-	Streak            int       `json:"streak"`
-	LastActiveAt      time.Time `json:"last_active_at"`
-	TotalTodosCompleted int     `json:"total_todos_completed"`
+	Points              int       `json:"points"`
+	Level               int       `json:"level"`
+	Streak              int       `json:"streak"`
+	LastActiveAt        time.Time `json:"last_active_at"`
+	TotalTodosCompleted int       `json:"total_todos_completed"`
 }
 
 // Badge represents a badge definition
 type Badge struct {
-	ID           uuid.UUID `json:"id"`
-	Name         string    `json:"name"`
-	Description  string    `json:"description"`
-	Icon         string    `json:"icon"`
-	PointsValue  int       `json:"points_value"`
-	CreatedAt    time.Time `json:"created_at"`
+	ID          uuid.UUID `json:"id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	Icon        string    `json:"icon"`
+	PointsValue int       `json:"points_value"`
+	CreatedAt   time.Time `json:"created_at"`
 }
 
 // Level represents a level definition
 type Level struct {
-	ID           uuid.UUID `json:"id"`
-	LevelNumber  int       `json:"level_number"`
-	Name         string    `json:"name"`
-	MinPoints    int       `json:"min_points"`
-	MaxPoints    int       `json:"max_points"`
-	CreatedAt    time.Time `json:"created_at"`
+	ID          uuid.UUID `json:"id"`
+	LevelNumber int       `json:"level_number"`
+	Name        string    `json:"name"`
+	MinPoints   int       `json:"min_points"`
+	MaxPoints   int       `json:"max_points"`
+	CreatedAt   time.Time `json:"created_at"`
 }
 
 // PointsTransaction represents an immutable ledger entry for points
@@ -80,11 +80,11 @@ type PointsTransaction struct {
 type TransactionReason string
 
 const (
-	TransactionReasonTodoCompleted     TransactionReason = "todo_completed"
-	TransactionReasonStreakBonus       TransactionReason = "streak_bonus"
-	TransactionReasonPerfectDay        TransactionReason = "perfect_day"
-	TransactionReasonBadgeEarned       TransactionReason = "badge_earned"
-	TransactionReasonLevelUp           TransactionReason = "level_up"
+	TransactionReasonTodoCompleted TransactionReason = "todo_completed"
+	TransactionReasonStreakBonus   TransactionReason = "streak_bonus"
+	TransactionReasonPerfectDay    TransactionReason = "perfect_day"
+	TransactionReasonBadgeEarned   TransactionReason = "badge_earned"
+	TransactionReasonLevelUp       TransactionReason = "level_up"
 )
 
 func CalculateLevel(xp int) int {
@@ -167,10 +167,10 @@ func GetLevelName(level int) string {
 
 // UserBadge represents a badge earned by a user
 type UserBadge struct {
-	ID        uuid.UUID `json:"id"`
-	UserID    uuid.UUID `json:"user_id"`
-	BadgeID   uuid.UUID `json:"badge_id"`
-	EarnedAt  time.Time `json:"earned_at"`
+	ID       uuid.UUID `json:"id"`
+	UserID   uuid.UUID `json:"user_id"`
+	BadgeID  uuid.UUID `json:"badge_id"`
+	EarnedAt time.Time `json:"earned_at"`
 }
 
 // UserLevel represents a user's current level progression
@@ -193,10 +193,10 @@ type StreakUpdateResult struct {
 
 // BadgeCriteria represents the criteria for earning a badge
 type BadgeCriteria struct {
-	Type        string `json:"type"`
-	Count       int    `json:"count,omitempty"`
-	Days        int    `json:"days,omitempty"`
-	BeforeHour  int    `json:"before_hour,omitempty"`
+	Type       string `json:"type"`
+	Count      int    `json:"count,omitempty"`
+	Days       int    `json:"days,omitempty"`
+	BeforeHour int    `json:"before_hour,omitempty"`
 }
 
 // BadgeWithEarned extends Badge with earned status
@@ -234,6 +234,7 @@ type GamificationService interface {
 	AwardBadge(userID uuid.UUID, badgeID uuid.UUID) (*UserBadge, error)
 	AwardXP(userID uuid.UUID, amount int, reason string) error
 	GetUserStats(userID uuid.UUID) (*UserStats, error)
+	GetPointsHistory(userID uuid.UUID, limit int) ([]*PointsTransaction, error)
 	OnTodoCompleted(userID uuid.UUID, completedAt time.Time)
 	OnStreakUpdated(userID uuid.UUID, streakDays int)
 	OnConnectionAdded(userID uuid.UUID)

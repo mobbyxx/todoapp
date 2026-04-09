@@ -8,11 +8,11 @@ import (
 )
 
 var (
-	ErrSharedGoalNotFound      = errors.New("shared goal not found")
-	ErrInvalidTargetType       = errors.New("invalid target type")
-	ErrInvalidTargetValue      = errors.New("invalid target value")
-	ErrGoalAlreadyCompleted    = errors.New("goal already completed")
-	ErrGoalCancelled           = errors.New("goal is cancelled")
+	ErrSharedGoalNotFound       = errors.New("shared goal not found")
+	ErrInvalidTargetType        = errors.New("invalid target type")
+	ErrInvalidTargetValue       = errors.New("invalid target value")
+	ErrGoalAlreadyCompleted     = errors.New("goal already completed")
+	ErrGoalCancelled            = errors.New("goal is cancelled")
 	ErrNotConnectionParticipant = errors.New("user is not a participant in this connection")
 )
 
@@ -24,13 +24,18 @@ const (
 	SharedGoalTargetTypeStreakDays     SharedGoalTargetType = "streak_days"
 )
 
+// String returns the string representation of SharedGoalTargetType
+func (t SharedGoalTargetType) String() string {
+	return string(t)
+}
+
 // SharedGoalStatus defines the possible statuses for shared goals
 type SharedGoalStatus string
 
 const (
-	SharedGoalStatusActive     SharedGoalStatus = "active"
-	SharedGoalStatusCompleted  SharedGoalStatus = "completed"
-	SharedGoalStatusCancelled  SharedGoalStatus = "cancelled"
+	SharedGoalStatusActive    SharedGoalStatus = "active"
+	SharedGoalStatusCompleted SharedGoalStatus = "completed"
+	SharedGoalStatusCancelled SharedGoalStatus = "cancelled"
 )
 
 // SharedGoal represents a collaborative goal between two connected users
@@ -142,15 +147,15 @@ type CreateSharedGoalRequest struct {
 
 // SharedGoalResponse represents a shared goal in API responses
 type SharedGoalResponse struct {
-	ID                string    `json:"id"`
-	ConnectionID      string    `json:"connection_id"`
-	TargetType        string    `json:"target_type"`
-	TargetValue       int       `json:"target_value"`
-	CurrentValue      int       `json:"current_value"`
-	ProgressPercent   float64   `json:"progress_percent"`
-	RewardDescription string    `json:"reward_description"`
-	Status            string    `json:"status"`
-	CreatedAt         time.Time `json:"created_at"`
+	ID                string     `json:"id"`
+	ConnectionID      string     `json:"connection_id"`
+	TargetType        string     `json:"target_type"`
+	TargetValue       int        `json:"target_value"`
+	CurrentValue      int        `json:"current_value"`
+	ProgressPercent   float64    `json:"progress_percent"`
+	RewardDescription string     `json:"reward_description"`
+	Status            string     `json:"status"`
+	CreatedAt         time.Time  `json:"created_at"`
 	CompletedAt       *time.Time `json:"completed_at,omitempty"`
 }
 

@@ -147,7 +147,8 @@ func (r *userRepository) UpdateLastSeen(id uuid.UUID) error {
 
 func (r *userRepository) scanUser(row pgx.Row) (*domain.User, error) {
 	var user domain.User
-	var avatarURL, emailVerifiedAt, lastSeenAt, lastStreakDate *time.Time
+	var avatarURL *string
+	var emailVerifiedAt, lastSeenAt, lastStreakDate *time.Time
 	var currentLevelID *uuid.UUID
 	var preferencesJSON []byte
 

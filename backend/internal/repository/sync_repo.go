@@ -120,7 +120,8 @@ func (r *syncRepository) GetChangesSince(userID uuid.UUID, since domain.HLC) (*d
 
 	for rows.Next() {
 		var todo domain.Todo
-		var assignedTo, dueDate, deletedAt *time.Time
+		var assignedTo *uuid.UUID
+		var dueDate, deletedAt *time.Time
 		var createdMs, updatedMs int64
 		var deletedMs *int64
 
@@ -391,7 +392,8 @@ func (r *syncRepository) getTodo(tx pgx.Tx, id uuid.UUID) (*domain.Todo, error) 
 	`
 
 	var todo domain.Todo
-	var assignedTo, dueDate, deletedAt *time.Time
+	var assignedTo *uuid.UUID
+	var dueDate, deletedAt *time.Time
 
 	err := tx.QueryRow(context.Background(), query, id).Scan(
 		&todo.ID,

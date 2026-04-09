@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
@@ -228,6 +229,33 @@ func (r *gamificationRepository) AddXP(userID uuid.UUID, amount int, reason stri
 	}
 
 	return tx.Commit(context.Background())
+}
+
+func (r *gamificationRepository) GetPointsHistory(userID uuid.UUID, limit int) ([]*domain.PointsTransaction, error) {
+	query := `
+		SELECT id, user_id, amount, reason, reference_type, reference_id, created_at
+		FROM points_transactions
+		WHERE user_id = $1
+		ORDER BY created_at DESC
+		LIMIT $2
+	`
+
+	rows, err := r.db.Query(context.Background(), query, userID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var transactions []*domain.PointsTransaction
+	for rows.Next() {
+		var t domain.PointsTransaction
+		if err := rows.Scan(&t.ID, &t.UserID, &t.Amount, &t.Reason, &t.ReferenceType, &t.ReferenceID, &t.CreatedAt); err != nil {
+			return nil, err
+		}
+		transactions = append(transactions, &t)
+	}
+
+	return transactions, rows.Err()
 }
 
 func (r *gamificationRepository) GetUserXP(userID uuid.UUID) (int, error) {

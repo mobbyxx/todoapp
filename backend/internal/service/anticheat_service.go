@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/user/todo-api/internal/domain"
 )
@@ -19,9 +20,9 @@ const (
 )
 
 type antiCheatService struct {
-	redis      *redis.Client
-	todoRepo   domain.TodoRepository
-	config     domain.AntiCheatConfig
+	redis    *redis.Client
+	todoRepo domain.TodoRepository
+	config   domain.AntiCheatConfig
 }
 
 func NewAntiCheatService(redisClient *redis.Client, todoRepo domain.TodoRepository, config domain.AntiCheatConfig) domain.AntiCheatService {

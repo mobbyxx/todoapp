@@ -46,11 +46,6 @@ type redemptionsListResponse struct {
 	Redemptions []domain.RewardRedemption `json:"redemptions"`
 }
 
-type errorResponse struct {
-	Error   string `json:"error"`
-	Message string `json:"message"`
-}
-
 func (h *RewardHandler) Create(w http.ResponseWriter, r *http.Request) {
 	userIDStr := middleware.GetUserID(r.Context())
 	if userIDStr == "" {
@@ -213,13 +208,4 @@ func (h *RewardHandler) Routes() chi.Router {
 	r.Get("/rewards/my", h.GetMyRedemptions)
 
 	return r
-}
-
-func writeError(w http.ResponseWriter, status int, code, message string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(errorResponse{
-		Error:   code,
-		Message: message,
-	})
 }

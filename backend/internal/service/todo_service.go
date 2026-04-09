@@ -10,12 +10,12 @@ import (
 )
 
 type todoService struct {
-	todoRepo         domain.TodoRepository
-	connectionRepo   domain.ConnectionRepository
-	userRepo         domain.UserRepository
-	gamificationSvc  domain.GamificationService
-	notificationSvc  domain.NotificationService
-	validate         *validator.Validate
+	todoRepo        domain.TodoRepository
+	connectionRepo  domain.ConnectionRepository
+	userRepo        domain.UserRepository
+	gamificationSvc domain.GamificationService
+	notificationSvc domain.NotificationService
+	validate        *validator.Validate
 }
 
 func NewTodoService(
@@ -258,7 +258,7 @@ func (s *todoService) validateAssignee(currentUserID, assigneeID uuid.UUID) erro
 
 func (s *todoService) triggerGamification(todo *domain.Todo, userID uuid.UUID) {
 	if s.gamificationSvc != nil {
-		s.gamificationSvc.OnTodoCompleted(userID, *todo.UpdatedAt)
+		s.gamificationSvc.OnTodoCompleted(userID, todo.UpdatedAt)
 	}
 }
 
@@ -277,7 +277,7 @@ func (s *todoService) queueTodoAssignedNotification(todo *domain.Todo, assignerI
 		todo.ID,
 		todo.Title,
 		assignerID,
-		assigner.Username,
+		assigner.DisplayName,
 	)
 }
 
@@ -297,7 +297,7 @@ func (s *todoService) queueTodoCompletedNotification(todo *domain.Todo, complete
 			todo.ID,
 			todo.Title,
 			completedByID,
-			completedBy.Username,
+			completedBy.DisplayName,
 		)
 	}
 
@@ -307,7 +307,7 @@ func (s *todoService) queueTodoCompletedNotification(todo *domain.Todo, complete
 			todo.ID,
 			todo.Title,
 			completedByID,
-			completedBy.Username,
+			completedBy.DisplayName,
 		)
 	}
 }

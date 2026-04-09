@@ -61,11 +61,6 @@ type userResponse struct {
 	User domain.UserProfile `json:"user"`
 }
 
-type errorResponse struct {
-	Error   string `json:"error"`
-	Message string `json:"message"`
-}
-
 func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var req registerRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -305,13 +300,4 @@ func (h *UserHandler) ProtectedRoutes() chi.Router {
 	r.Put("/users/me", h.UpdateMe)
 
 	return r
-}
-
-func writeError(w http.ResponseWriter, status int, code, message string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(errorResponse{
-		Error:   code,
-		Message: message,
-	})
 }

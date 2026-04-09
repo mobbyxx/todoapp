@@ -257,7 +257,8 @@ func (r *todoRepository) List(filters domain.TodoFilters) ([]*domain.Todo, int, 
 
 func (r *todoRepository) scanTodo(row pgx.Row) (*domain.Todo, error) {
 	var todo domain.Todo
-	var assignedTo, dueDate, deletedAt *time.Time
+	var assignedTo *uuid.UUID
+	var dueDate, deletedAt *time.Time
 
 	err := row.Scan(
 		&todo.ID,
@@ -299,7 +300,8 @@ func (r *todoRepository) scanTodos(rows pgx.Rows) ([]*domain.Todo, error) {
 
 	for rows.Next() {
 		var todo domain.Todo
-		var assignedTo, dueDate, deletedAt *time.Time
+		var assignedTo *uuid.UUID
+		var dueDate, deletedAt *time.Time
 
 		err := rows.Scan(
 			&todo.ID,

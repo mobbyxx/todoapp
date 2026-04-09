@@ -68,8 +68,8 @@ func main() {
 	r.Use(middleware.Recoverer)
 	r.Use(customMiddleware.RequestID)
 	r.Use(customMiddleware.Logging)
-	r.Use(customMiddleware.Security)
-	r.Use(customMiddleware.CORS(cfg.Server.Domain))
+	r.Use(customMiddleware.SecurityHeaders)
+	r.Use(customMiddleware.CORS(nil))
 	r.Use(rateLimiter.RateLimit)
 
 	// Health and metrics endpoints (no auth required)
@@ -208,16 +208,16 @@ func initRedis(redisURL string) (*redis.Client, error) {
 
 // Repositories holds all repository instances
 type Repositories struct {
-	user             domain.UserRepository
-	todo             domain.TodoRepository
-	connection       domain.ConnectionRepository
-	gamification     domain.GamificationRepository
-	reward           domain.RewardRepository
-	sharedGoal       domain.SharedGoalRepository
-	sync             domain.SyncRepository
-	conflict         domain.ConflictRepository
-	notification     domain.NotificationQueueRepository
-	pushToken        domain.PushTokenRepository
+	user         domain.UserRepository
+	todo         domain.TodoRepository
+	connection   domain.ConnectionRepository
+	gamification domain.GamificationRepository
+	reward       domain.RewardRepository
+	sharedGoal   domain.SharedGoalRepository
+	sync         domain.SyncRepository
+	conflict     domain.ConflictRepository
+	notification domain.NotificationQueueRepository
+	pushToken    *repository.PushTokenRepository
 }
 
 // initRepositories creates all repository instances
@@ -287,12 +287,12 @@ func initServices(repos *Repositories, redisClient *redis.Client, cfg *config.Co
 
 	// Anti-Cheat Service
 	antiCheatConfig := domain.AntiCheatConfig{
-		RateLimitWindow:     time.Minute,
-		RateLimitMaxActions: 60,
-		TimestampTolerance:  5 * time.Minute,
-		IdempotencyTTL:      24 * time.Hour,
-		MinActionGap:        time.Second,
-		StatusCycleWindow:   time.Hour,
+		RateLimitWindow:      time.Minute,
+		RateLimitMaxActions:  60,
+		TimestampTolerance:   5 * time.Minute,
+		IdempotencyTTL:       24 * time.Hour,
+		MinActionGap:         time.Second,
+		StatusCycleWindow:    time.Hour,
 		StatusCycleThreshold: 10,
 	}
 	antiCheatService := service.NewAntiCheatService(redisClient, repos.todo, antiCheatConfig)

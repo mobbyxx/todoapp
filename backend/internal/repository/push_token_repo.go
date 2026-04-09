@@ -10,15 +10,15 @@ import (
 	"github.com/user/todo-api/internal/infrastructure/push"
 )
 
-type pushTokenRepository struct {
+type PushTokenRepository struct {
 	db *pgxpool.Pool
 }
 
-func NewPushTokenRepository(db *pgxpool.Pool) *pushTokenRepository {
-	return &pushTokenRepository{db: db}
+func NewPushTokenRepository(db *pgxpool.Pool) *PushTokenRepository {
+	return &PushTokenRepository{db: db}
 }
 
-func (r *pushTokenRepository) GetActiveTokensByUserID(userID uuid.UUID) ([]push.TokenInfo, error) {
+func (r *PushTokenRepository) GetActiveTokensByUserID(userID uuid.UUID) ([]push.TokenInfo, error) {
 	query := `
 		SELECT id, user_id, token, platform
 		FROM push_notification_tokens
@@ -35,7 +35,7 @@ func (r *pushTokenRepository) GetActiveTokensByUserID(userID uuid.UUID) ([]push.
 	return r.scanTokens(rows)
 }
 
-func (r *pushTokenRepository) GetAllActiveTokens(limit int) ([]push.TokenInfo, error) {
+func (r *PushTokenRepository) GetAllActiveTokens(limit int) ([]push.TokenInfo, error) {
 	query := `
 		SELECT id, user_id, token, platform
 		FROM push_notification_tokens
@@ -53,7 +53,7 @@ func (r *pushTokenRepository) GetAllActiveTokens(limit int) ([]push.TokenInfo, e
 	return r.scanTokens(rows)
 }
 
-func (r *pushTokenRepository) DeactivateToken(token string) error {
+func (r *PushTokenRepository) DeactivateToken(token string) error {
 	query := `
 		UPDATE push_notification_tokens
 		SET is_active = false, updated_at = NOW()
@@ -64,14 +64,14 @@ func (r *pushTokenRepository) DeactivateToken(token string) error {
 	return err
 }
 
-func (r *pushTokenRepository) DeleteToken(token string) error {
+func (r *PushTokenRepository) DeleteToken(token string) error {
 	query := `DELETE FROM push_notification_tokens WHERE token = $1`
 
 	_, err := r.db.Exec(context.Background(), query, token)
 	return err
 }
 
-func (r *pushTokenRepository) UpdateLastUsed(token string) error {
+func (r *PushTokenRepository) UpdateLastUsed(token string) error {
 	query := `
 		UPDATE push_notification_tokens
 		SET last_used_at = NOW(), updated_at = NOW()
@@ -82,7 +82,7 @@ func (r *pushTokenRepository) UpdateLastUsed(token string) error {
 	return err
 }
 
-func (r *pushTokenRepository) scanTokens(rows pgx.Rows) ([]push.TokenInfo, error) {
+func (r *PushTokenRepository) scanTokens(rows pgx.Rows) ([]push.TokenInfo, error) {
 	var tokens []push.TokenInfo
 
 	for rows.Next() {
@@ -105,7 +105,7 @@ func (r *pushTokenRepository) scanTokens(rows pgx.Rows) ([]push.TokenInfo, error
 	return tokens, rows.Err()
 }
 
-func (r *pushTokenRepository) CreateDeadLetterEntry(userID uuid.UUID, notificationType string, payload []byte, errorMessage string) error {
+func (r *PushTokenRepository) CreateDeadLetterEntry(userID uuid.UUID, notificationType string, payload []byte, errorMessage string) error {
 	query := `
 		INSERT INTO notification_dead_letter (user_id, type, payload, error_message, created_at)
 		VALUES ($1, $2, $3, $4, $5)

@@ -38,13 +38,13 @@ func (h *ConnectionHandler) RegisterRoutes(r chi.Router) {
 func (h *ConnectionHandler) CreateInvitation(w http.ResponseWriter, r *http.Request) {
 	userIDStr := middleware.GetUserID(r.Context())
 	if userIDStr == "" {
-		writeError(w, http.StatusUnauthorized, "authentication required")
+		writeError(w, http.StatusUnauthorized, "unauthorized", "authentication required")
 		return
 	}
 
 	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid user ID")
+		writeError(w, http.StatusBadRequest, "invalid_id", "invalid user ID")
 		return
 	}
 
@@ -52,9 +52,9 @@ func (h *ConnectionHandler) CreateInvitation(w http.ResponseWriter, r *http.Requ
 	if err != nil {
 		switch {
 		case errors.Is(err, domain.ErrConnectionAlreadyExists):
-			writeError(w, http.StatusConflict, "connection already exists")
+			writeError(w, http.StatusConflict, "conflict", "connection already exists")
 		default:
-			writeError(w, http.StatusInternalServerError, "failed to create invitation")
+			writeError(w, http.StatusInternalServerError, "internal_error", "failed to create invitation")
 		}
 		return
 	}
@@ -74,7 +74,7 @@ func (h *ConnectionHandler) CreateInvitation(w http.ResponseWriter, r *http.Requ
 func (h *ConnectionHandler) ValidateInvitation(w http.ResponseWriter, r *http.Request) {
 	token := chi.URLParam(r, "token")
 	if token == "" {
-		writeError(w, http.StatusBadRequest, "token is required")
+		writeError(w, http.StatusBadRequest, "invalid_token", "token is required")
 		return
 	}
 
@@ -82,11 +82,11 @@ func (h *ConnectionHandler) ValidateInvitation(w http.ResponseWriter, r *http.Re
 	if err != nil {
 		switch {
 		case errors.Is(err, domain.ErrInvalidInvitationToken):
-			writeError(w, http.StatusNotFound, "invalid invitation token")
+			writeError(w, http.StatusNotFound, "invalid_token", "invalid invitation token")
 		case errors.Is(err, domain.ErrInvitationExpired):
-			writeError(w, http.StatusGone, "invitation has expired")
+			writeError(w, http.StatusGone, "expired", "invitation has expired")
 		default:
-			writeError(w, http.StatusInternalServerError, "failed to validate invitation")
+			writeError(w, http.StatusInternalServerError, "internal_error", "failed to validate invitation")
 		}
 		return
 	}
@@ -106,34 +106,34 @@ func (h *ConnectionHandler) ValidateInvitation(w http.ResponseWriter, r *http.Re
 func (h *ConnectionHandler) AcceptInvitation(w http.ResponseWriter, r *http.Request) {
 	userIDStr := middleware.GetUserID(r.Context())
 	if userIDStr == "" {
-		writeError(w, http.StatusUnauthorized, "authentication required")
+		writeError(w, http.StatusUnauthorized, "unauthorized", "authentication required")
 		return
 	}
 
 	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid user ID")
+		writeError(w, http.StatusBadRequest, "invalid_id", "invalid user ID")
 		return
 	}
 
 	token := chi.URLParam(r, "token")
 	if token == "" {
-		writeError(w, http.StatusBadRequest, "token is required")
+		writeError(w, http.StatusBadRequest, "invalid_token", "token is required")
 		return
 	}
 
 	if err := h.service.AcceptInvitation(userID, token); err != nil {
 		switch {
 		case errors.Is(err, domain.ErrInvalidInvitationToken):
-			writeError(w, http.StatusNotFound, "invalid invitation token")
+			writeError(w, http.StatusNotFound, "invalid_token", "invalid invitation token")
 		case errors.Is(err, domain.ErrInvitationExpired):
-			writeError(w, http.StatusGone, "invitation has expired")
+			writeError(w, http.StatusGone, "expired", "invitation has expired")
 		case errors.Is(err, domain.ErrUnauthorizedAction):
-			writeError(w, http.StatusForbidden, "cannot accept your own invitation")
+			writeError(w, http.StatusForbidden, "forbidden", "cannot accept your own invitation")
 		case errors.Is(err, domain.ErrInvalidStatusTransition):
-			writeError(w, http.StatusConflict, "invitation cannot be accepted")
+			writeError(w, http.StatusConflict, "conflict", "invitation cannot be accepted")
 		default:
-			writeError(w, http.StatusInternalServerError, "failed to accept invitation")
+			writeError(w, http.StatusInternalServerError, "internal_error", "failed to accept invitation")
 		}
 		return
 	}
@@ -144,34 +144,34 @@ func (h *ConnectionHandler) AcceptInvitation(w http.ResponseWriter, r *http.Requ
 func (h *ConnectionHandler) RejectInvitation(w http.ResponseWriter, r *http.Request) {
 	userIDStr := middleware.GetUserID(r.Context())
 	if userIDStr == "" {
-		writeError(w, http.StatusUnauthorized, "authentication required")
+		writeError(w, http.StatusUnauthorized, "unauthorized", "authentication required")
 		return
 	}
 
 	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid user ID")
+		writeError(w, http.StatusBadRequest, "invalid_id", "invalid user ID")
 		return
 	}
 
 	token := chi.URLParam(r, "token")
 	if token == "" {
-		writeError(w, http.StatusBadRequest, "token is required")
+		writeError(w, http.StatusBadRequest, "invalid_token", "token is required")
 		return
 	}
 
 	if err := h.service.RejectInvitation(userID, token); err != nil {
 		switch {
 		case errors.Is(err, domain.ErrInvalidInvitationToken):
-			writeError(w, http.StatusNotFound, "invalid invitation token")
+			writeError(w, http.StatusNotFound, "invalid_token", "invalid invitation token")
 		case errors.Is(err, domain.ErrInvitationExpired):
-			writeError(w, http.StatusGone, "invitation has expired")
+			writeError(w, http.StatusGone, "expired", "invitation has expired")
 		case errors.Is(err, domain.ErrUnauthorizedAction):
-			writeError(w, http.StatusForbidden, "cannot reject your own invitation")
+			writeError(w, http.StatusForbidden, "forbidden", "cannot reject your own invitation")
 		case errors.Is(err, domain.ErrInvalidStatusTransition):
-			writeError(w, http.StatusConflict, "invitation cannot be rejected")
+			writeError(w, http.StatusConflict, "conflict", "invitation cannot be rejected")
 		default:
-			writeError(w, http.StatusInternalServerError, "failed to reject invitation")
+			writeError(w, http.StatusInternalServerError, "internal_error", "failed to reject invitation")
 		}
 		return
 	}
@@ -182,33 +182,33 @@ func (h *ConnectionHandler) RejectInvitation(w http.ResponseWriter, r *http.Requ
 func (h *ConnectionHandler) ListConnections(w http.ResponseWriter, r *http.Request) {
 	userIDStr := middleware.GetUserID(r.Context())
 	if userIDStr == "" {
-		writeError(w, http.StatusUnauthorized, "authentication required")
+		writeError(w, http.StatusUnauthorized, "unauthorized", "authentication required")
 		return
 	}
 
 	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid user ID")
+		writeError(w, http.StatusBadRequest, "invalid_id", "invalid user ID")
 		return
 	}
 
 	connections, err := h.service.GetConnections(userID)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "failed to list connections")
+		writeError(w, http.StatusInternalServerError, "internal_error", "failed to list connections")
 		return
 	}
 
 	response := make([]domain.ExtendedConnectionResponse, len(connections))
 	for i, conn := range connections {
 		response[i] = domain.ExtendedConnectionResponse{
-			ID:         conn.ID.String(),
-			UserAID:    conn.UserAID.String(),
-			UserBID:    conn.UserBID.String(),
-			Status:     string(conn.Status),
+			ID:          conn.ID.String(),
+			UserAID:     conn.UserAID.String(),
+			UserBID:     conn.UserBID.String(),
+			Status:      string(conn.Status),
 			RequestedBy: conn.RequestedBy.String(),
-			AcceptedAt: conn.AcceptedAt,
-			CreatedAt:  conn.CreatedAt,
-			UpdatedAt:  conn.UpdatedAt,
+			AcceptedAt:  conn.AcceptedAt,
+			CreatedAt:   conn.CreatedAt,
+			UpdatedAt:   conn.UpdatedAt,
 		}
 	}
 
@@ -220,31 +220,31 @@ func (h *ConnectionHandler) ListConnections(w http.ResponseWriter, r *http.Reque
 func (h *ConnectionHandler) RemoveConnection(w http.ResponseWriter, r *http.Request) {
 	userIDStr := middleware.GetUserID(r.Context())
 	if userIDStr == "" {
-		writeError(w, http.StatusUnauthorized, "authentication required")
+		writeError(w, http.StatusUnauthorized, "unauthorized", "authentication required")
 		return
 	}
 
 	userID, err := uuid.Parse(userIDStr)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid user ID")
+		writeError(w, http.StatusBadRequest, "invalid_id", "invalid user ID")
 		return
 	}
 
 	connectionIDStr := chi.URLParam(r, "connectionID")
 	connectionID, err := uuid.Parse(connectionIDStr)
 	if err != nil {
-		writeError(w, http.StatusBadRequest, "invalid connection ID")
+		writeError(w, http.StatusBadRequest, "invalid_id", "invalid connection ID")
 		return
 	}
 
 	if err := h.service.Disconnect(connectionID, userID); err != nil {
 		switch {
 		case errors.Is(err, domain.ErrConnectionNotFound):
-			writeError(w, http.StatusNotFound, "connection not found")
+			writeError(w, http.StatusNotFound, "not_found", "connection not found")
 		case errors.Is(err, domain.ErrUnauthorizedAction):
-			writeError(w, http.StatusForbidden, "not authorized to remove this connection")
+			writeError(w, http.StatusForbidden, "forbidden", "not authorized to remove this connection")
 		default:
-			writeError(w, http.StatusInternalServerError, "failed to remove connection")
+			writeError(w, http.StatusInternalServerError, "internal_error", "failed to remove connection")
 		}
 		return
 	}
@@ -253,17 +253,9 @@ func (h *ConnectionHandler) RemoveConnection(w http.ResponseWriter, r *http.Requ
 }
 
 func (h *ConnectionHandler) GenerateQRCode(w http.ResponseWriter, r *http.Request) {
-	writeError(w, http.StatusNotImplemented, "QR code generation is deprecated, use /api/v1/connections/invite instead")
+	writeError(w, http.StatusNotImplemented, "deprecated", "QR code generation is deprecated, use /api/v1/connections/invite instead")
 }
 
 func (h *ConnectionHandler) ScanQRCode(w http.ResponseWriter, r *http.Request) {
-	writeError(w, http.StatusNotImplemented, "QR code scanning is deprecated, use invitation links instead")
-}
-
-func writeError(w http.ResponseWriter, status int, message string) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(map[string]string{
-		"error": message,
-	})
+	writeError(w, http.StatusNotImplemented, "deprecated", "QR code scanning is deprecated, use invitation links instead")
 }

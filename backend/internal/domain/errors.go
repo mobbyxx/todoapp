@@ -11,4 +11,6 @@ var (
 	ErrConflictDetected         = errors.New("conflict detected during sync")
 	ErrBadgeNotFound            = errors.New("badge not found")
 	ErrInsufficientFreezeTokens = errors.New("insufficient freeze tokens")
+	ErrUnauthorizedAction       = errors.New("unauthorized action")
+	ErrInvalidStatusTransition  = errors.New("invalid status transition")
 )

@@ -33,7 +33,7 @@ type userStatsResponse struct {
 }
 
 type pointsHistoryResponse struct {
-	History []domain.PointsTransaction `json:"history"`
+	History []*domain.PointsTransaction `json:"history"`
 }
 
 func (h *GamificationHandler) GetUserStats(w http.ResponseWriter, r *http.Request) {
