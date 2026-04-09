@@ -13,10 +13,10 @@ import (
 const (
 	accessTokenTTL  = 15 * time.Minute
 	refreshTokenTTL = 7 * 24 * time.Hour
-	
+
 	accessTokenType  = "access"
 	refreshTokenType = "refresh"
-	
+
 	tokenVersionKeyPrefix = "token_version:"
 	tokenBlacklistPrefix  = "blacklist:"
 )
@@ -152,12 +152,15 @@ func (s *JWTService) ValidateRefreshToken(ctx context.Context, tokenString strin
 func (s *JWTService) RevokeToken(ctx context.Context, tokenString string) error {
 	claims, err := s.parseToken(tokenString)
 	if err != nil {
+		if errors.Is(err, ErrTokenExpired) {
+			return nil
+		}
 		return err
 	}
 
 	now := time.Now()
 	var ttl time.Duration
-	
+
 	if claims.ExpiresAt != nil && claims.ExpiresAt.Time.After(now) {
 		ttl = claims.ExpiresAt.Time.Sub(now)
 	} else {
@@ -174,7 +177,7 @@ func (s *JWTService) RevokeToken(ctx context.Context, tokenString string) error 
 
 func (s *JWTService) IncrementTokenVersion(ctx context.Context, userID string) error {
 	key := fmt.Sprintf("%s%s", tokenVersionKeyPrefix, userID)
-	
+
 	_, err := s.redis.Incr(ctx, key).Result()
 	if err != nil {
 		return fmt.Errorf("failed to increment token version: %w", err)
@@ -185,7 +188,7 @@ func (s *JWTService) IncrementTokenVersion(ctx context.Context, userID string) e
 		s.redis.Decr(ctx, key)
 		return fmt.Errorf("failed to set token version TTL: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -195,7 +198,7 @@ func (s *JWTService) GetTokenVersion(ctx context.Context, userID string) (int, e
 
 func (s *JWTService) getTokenVersion(ctx context.Context, userID string) (int, error) {
 	key := fmt.Sprintf("%s%s", tokenVersionKeyPrefix, userID)
-	
+
 	version, err := s.redis.Get(ctx, key).Int()
 	if err == redis.Nil {
 		version = 1
@@ -207,7 +210,7 @@ func (s *JWTService) getTokenVersion(ctx context.Context, userID string) (int, e
 	if err != nil {
 		return 0, fmt.Errorf("failed to get token version: %w", err)
 	}
-	
+
 	return version, nil
 }
 

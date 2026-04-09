@@ -210,6 +210,7 @@ type BadgeWithEarned struct {
 type GamificationRepository interface {
 	GetAllBadges() ([]*Badge, error)
 	GetBadgeByID(id uuid.UUID) (*Badge, error)
+	GetBadgeCriteria(badgeID uuid.UUID) (*BadgeCriteria, error)
 	GetUserBadges(userID uuid.UUID) ([]*UserBadge, error)
 	HasBadge(userID, badgeID uuid.UUID) (bool, error)
 	AwardBadge(userBadge *UserBadge) error

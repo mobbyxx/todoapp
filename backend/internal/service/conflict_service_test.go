@@ -2,6 +2,7 @@ package service
 
 import (
 	"encoding/json"
+	"errors"
 	"testing"
 	"time"
 
@@ -442,17 +443,17 @@ func TestConflictService_GetUnresolvedConflicts(t *testing.T) {
 	conflictID := uuid.New()
 
 	conflict := &domain.SyncConflictRecord{
-		ID:             conflictID,
-		UserID:         userID,
-		EntityType:     "todo",
-		EntityID:       uuid.New(),
-		LocalVersion:   1,
-		RemoteVersion:  2,
-		Status:         string(domain.ConflictStatusPending),
-		CreatedAt:      time.Now(),
-		UpdatedAt:      time.Now(),
-		LocalData:      []byte(`{"title":"local"}`),
-		RemoteData:     []byte(`{"title":"remote"}`),
+		ID:              conflictID,
+		UserID:          userID,
+		EntityType:      "todo",
+		EntityID:        uuid.New(),
+		LocalVersion:    1,
+		RemoteVersion:   2,
+		Status:          string(domain.ConflictStatusPending),
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
+		LocalData:       []byte(`{"title":"local"}`),
+		RemoteData:      []byte(`{"title":"remote"}`),
 		ClientTimestamp: domain.HLC{PhysicalTime: time.Now().UnixMilli()},
 		ServerTimestamp: domain.HLC{PhysicalTime: time.Now().UnixMilli()},
 	}
@@ -721,8 +722,8 @@ func TestConflictService_ResolveWithFieldStrategies_AllAutoResolve(t *testing.T)
 
 	resolved, promptFields, err := service.ResolveWithFieldStrategies(local, remote)
 
-	if err != nil {
-		t.Fatalf("Expected no error, got %v", err)
+	if !errors.Is(err, domain.ErrConflictDetected) {
+		t.Fatalf("Expected ErrConflictDetected, got %v", err)
 	}
 
 	if len(promptFields) != 2 {

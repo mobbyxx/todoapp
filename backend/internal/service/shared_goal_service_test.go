@@ -36,7 +36,8 @@ func (m *mockSharedGoalRepository) GetByConnection(connectionID uuid.UUID) ([]*d
 	var result []*domain.SharedGoal
 	for _, goal := range m.goals {
 		if goal.ConnectionID == connectionID {
-			result = append(result, goal)
+			cp := *goal
+			result = append(result, &cp)
 		}
 	}
 	return result, nil

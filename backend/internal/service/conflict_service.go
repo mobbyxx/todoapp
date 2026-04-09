@@ -234,7 +234,7 @@ func (s *conflictService) ResolveConflictManually(
 	}
 
 	todo := resolvedTodo.ToTodo()
-	todo.Version = conflict.RemoteVersion + 1
+	todo.Version = conflict.RemoteVersion
 
 	if err := s.todoRepo.Update(todo); err != nil {
 		return err

@@ -39,6 +39,9 @@ func TestContractSuite(t *testing.T) {
 }
 
 func (s *ContractTestSuite) SetupSuite() {
+	openapi3.DefineStringFormat("email", openapi3.FormatOfStringForEmail)
+	openapi3.DefineStringFormat("uuid", openapi3.FormatOfStringForUUIDOfRFC4122)
+
 	schema := s.loadOpenAPISchema()
 	s.openAPISchema = schema
 
@@ -360,22 +363,23 @@ func (s *ContractTestSuite) validateRequest(req *http.Request, body []byte) erro
 		Route:      route,
 	}
 
-	if err := openapi3filter.ValidateRequest(context.Background(), requestValidationInput); err != nil {
+	validationCtx := openapi3.WithValidationOptions(context.Background(), openapi3.EnableSchemaFormatValidation())
+	if err := openapi3filter.ValidateRequest(validationCtx, requestValidationInput); err != nil {
 		return fmt.Errorf("validating request: %w", err)
 	}
 
 	return nil
 }
 
-func (s *ContractTestSuite) validateResponse(resp *http.Response, body []byte) error {
-	route, pathParams, err := s.openapiRouter.FindRoute(resp.Request)
+func (s *ContractTestSuite) validateResponse(req *http.Request, resp *http.Response, body []byte) error {
+	route, pathParams, err := s.openapiRouter.FindRoute(req)
 	if err != nil {
 		return fmt.Errorf("finding route for response: %w", err)
 	}
 
 	responseValidationInput := &openapi3filter.ResponseValidationInput{
 		RequestValidationInput: &openapi3filter.RequestValidationInput{
-			Request:    resp.Request,
+			Request:    req,
 			PathParams: pathParams,
 			Route:      route,
 		},
@@ -387,7 +391,8 @@ func (s *ContractTestSuite) validateResponse(resp *http.Response, body []byte) e
 		responseValidationInput.SetBodyBytes(body)
 	}
 
-	if err := openapi3filter.ValidateResponse(context.Background(), responseValidationInput); err != nil {
+	validationCtx := openapi3.WithValidationOptions(context.Background(), openapi3.EnableSchemaFormatValidation())
+	if err := openapi3filter.ValidateResponse(validationCtx, responseValidationInput); err != nil {
 		return fmt.Errorf("validating response: %w", err)
 	}
 
@@ -402,7 +407,7 @@ func (s *ContractTestSuite) TestRegisterUser_Contract() {
 	}
 	jsonBody, _ := json.Marshal(reqBody)
 
-	req := httptest.NewRequest("POST", "/api/v1/auth/register", bytes.NewBuffer(jsonBody))
+	req := httptest.NewRequest("POST", "http://localhost:8080/api/v1/auth/register", bytes.NewBuffer(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
 
 	err := s.validateRequest(req, jsonBody)
@@ -413,18 +418,31 @@ func (s *ContractTestSuite) TestRegisterUser_Contract() {
 
 	s.Require().Equal(http.StatusCreated, rr.Code)
 
-	err = s.validateResponse(rr.Result(), rr.Body.Bytes())
+	err = s.validateResponse(req, rr.Result(), rr.Body.Bytes())
 	s.Require().NoError(err)
 }
 
 func (s *ContractTestSuite) TestLoginUser_Contract() {
+	registerBody := map[string]interface{}{
+		"email":        "test@example.com",
+		"password":     "password123",
+		"display_name": "Test User",
+	}
+	registerJSON, _ := json.Marshal(registerBody)
+
+	registerReq := httptest.NewRequest("POST", "http://localhost:8080/api/v1/auth/register", bytes.NewBuffer(registerJSON))
+	registerReq.Header.Set("Content-Type", "application/json")
+	registerRR := httptest.NewRecorder()
+	s.router.ServeHTTP(registerRR, registerReq)
+	s.Require().Equal(http.StatusCreated, registerRR.Code)
+
 	reqBody := map[string]interface{}{
 		"email":    "test@example.com",
 		"password": "password123",
 	}
 	jsonBody, _ := json.Marshal(reqBody)
 
-	req := httptest.NewRequest("POST", "/api/v1/auth/login", bytes.NewBuffer(jsonBody))
+	req := httptest.NewRequest("POST", "http://localhost:8080/api/v1/auth/login", bytes.NewBuffer(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
 
 	err := s.validateRequest(req, jsonBody)
@@ -435,12 +453,12 @@ func (s *ContractTestSuite) TestLoginUser_Contract() {
 
 	s.Require().Equal(http.StatusOK, rr.Code)
 
-	err = s.validateResponse(rr.Result(), rr.Body.Bytes())
+	err = s.validateResponse(req, rr.Result(), rr.Body.Bytes())
 	s.Require().NoError(err)
 }
 
 func (s *ContractTestSuite) TestListTodos_Contract() {
-	req := httptest.NewRequest("GET", "/api/v1/todos?page=1&page_size=20&status=pending", nil)
+	req := httptest.NewRequest("GET", "http://localhost:8080/api/v1/todos?page=1&page_size=20&status=pending", nil)
 	ctx := context.WithValue(req.Context(), middleware.UserIDKey, uuid.New().String())
 	req = req.WithContext(ctx)
 
@@ -452,7 +470,7 @@ func (s *ContractTestSuite) TestListTodos_Contract() {
 
 	s.Require().Equal(http.StatusOK, rr.Code)
 
-	err = s.validateResponse(rr.Result(), rr.Body.Bytes())
+	err = s.validateResponse(req, rr.Result(), rr.Body.Bytes())
 	s.Require().NoError(err)
 }
 
@@ -464,7 +482,7 @@ func (s *ContractTestSuite) TestCreateTodo_Contract() {
 	}
 	jsonBody, _ := json.Marshal(reqBody)
 
-	req := httptest.NewRequest("POST", "/api/v1/todos", bytes.NewBuffer(jsonBody))
+	req := httptest.NewRequest("POST", "http://localhost:8080/api/v1/todos", bytes.NewBuffer(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
 	ctx := context.WithValue(req.Context(), middleware.UserIDKey, uuid.New().String())
 	req = req.WithContext(ctx)
@@ -477,7 +495,7 @@ func (s *ContractTestSuite) TestCreateTodo_Contract() {
 
 	s.Require().Equal(http.StatusCreated, rr.Code)
 
-	err = s.validateResponse(rr.Result(), rr.Body.Bytes())
+	err = s.validateResponse(req, rr.Result(), rr.Body.Bytes())
 	s.Require().NoError(err)
 }
 
@@ -489,7 +507,7 @@ func (s *ContractTestSuite) TestRegisterUser_InvalidEmail() {
 	}
 	jsonBody, _ := json.Marshal(reqBody)
 
-	req := httptest.NewRequest("POST", "/api/v1/auth/register", bytes.NewBuffer(jsonBody))
+	req := httptest.NewRequest("POST", "http://localhost:8080/api/v1/auth/register", bytes.NewBuffer(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
 
 	err := s.validateRequest(req, jsonBody)
@@ -502,7 +520,7 @@ func (s *ContractTestSuite) TestCreateTodo_ShortTitle() {
 	}
 	jsonBody, _ := json.Marshal(reqBody)
 
-	req := httptest.NewRequest("POST", "/api/v1/todos", bytes.NewBuffer(jsonBody))
+	req := httptest.NewRequest("POST", "http://localhost:8080/api/v1/todos", bytes.NewBuffer(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
 	ctx := context.WithValue(req.Context(), middleware.UserIDKey, uuid.New().String())
 	req = req.WithContext(ctx)

@@ -41,30 +41,30 @@ func (s *apiKeyService) GenerateAPIKey(userID uuid.UUID, name string, scopes []s
 	if err := domain.ValidateScopes(scopes); err != nil {
 		return "", nil, fmt.Errorf("%w: %v", domain.ErrInvalidScope, err)
 	}
-	
+
 	// Validate name
 	if strings.TrimSpace(name) == "" {
 		return "", nil, errors.New("name is required")
 	}
-	
+
 	// Generate random API key
 	fullKey, err := domain.GenerateAPIKeyRandom()
 	if err != nil {
 		return "", nil, fmt.Errorf("%w: %v", domain.ErrKeyGeneration, err)
 	}
-	
+
 	// Extract prefix for database lookup
 	prefix, err := domain.ExtractPrefix(fullKey)
 	if err != nil {
 		return "", nil, err
 	}
-	
+
 	// Hash the key using Argon2id
 	keyHash, err := hashAPIKey(fullKey)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to hash api key: %w", err)
 	}
-	
+
 	// Create API key record
 	apiKey := &domain.APIKey{
 		UserID:    userID,
@@ -76,12 +76,12 @@ func (s *apiKeyService) GenerateAPIKey(userID uuid.UUID, name string, scopes []s
 		IsActive:  true,
 		ExpiresAt: expiresAt,
 	}
-	
+
 	// Store in database
 	if err := s.repo.Create(apiKey); err != nil {
 		return "", nil, fmt.Errorf("failed to store api key: %w", err)
 	}
-	
+
 	// Return the full key (this is the ONLY time the user will see it)
 	return fullKey, apiKey, nil
 }
@@ -94,7 +94,7 @@ func (s *apiKeyService) ValidateAPIKey(key string) (*domain.APIKey, error) {
 	if err != nil {
 		return nil, domain.ErrAPIKeyInvalid
 	}
-	
+
 	// Retrieve API key record by prefix
 	apiKey, err := s.repo.GetByPrefix(prefix)
 	if err != nil {
@@ -103,34 +103,36 @@ func (s *apiKeyService) ValidateAPIKey(key string) (*domain.APIKey, error) {
 		}
 		return nil, fmt.Errorf("failed to retrieve api key: %w", err)
 	}
-	
+
 	// Check if key is active
 	if !apiKey.IsActive {
 		return nil, domain.ErrAPIKeyRevoked
 	}
-	
+
 	// Check if key is revoked
 	if apiKey.IsRevoked() {
 		return nil, domain.ErrAPIKeyRevoked
 	}
-	
+
 	// Check if key has expired
 	if apiKey.IsExpired() {
 		return nil, domain.ErrAPIKeyExpired
 	}
-	
+
 	// Verify key hash using constant-time comparison
 	if !verifyAPIKey(key, apiKey.KeyHash) {
 		return nil, domain.ErrAPIKeyInvalid
 	}
-	
+
 	// Update last used timestamp
 	if err := s.repo.UpdateLastUsed(apiKey.ID); err != nil {
 		// Log error but don't fail validation
 		// In production, this should be logged
 		_ = err
 	}
-	
+	now := time.Now()
+	apiKey.LastUsedAt = &now
+
 	return apiKey, nil
 }
 
@@ -170,18 +172,18 @@ func hashAPIKey(key string) (string, error) {
 	if _, err := rand.Read(salt); err != nil {
 		return "", fmt.Errorf("failed to generate salt: %w", err)
 	}
-	
+
 	// Hash the key using Argon2id
 	hash := argon2.IDKey([]byte(key), salt, argon2Time, argon2Memory, argon2Threads, argon2KeyLen)
-	
+
 	// Encode as base64
 	b64Salt := base64.RawStdEncoding.EncodeToString(salt)
 	b64Hash := base64.RawStdEncoding.EncodeToString(hash)
-	
+
 	// Format: $argon2id$v=19$m=65536,t=1,p=4$<salt>$<hash>
 	encodedHash := fmt.Sprintf("$argon2id$v=%d$m=%d,t=%d,p=%d$%s$%s",
 		argon2.Version, argon2Memory, argon2Time, argon2Threads, b64Salt, b64Hash)
-	
+
 	return encodedHash, nil
 }
 
@@ -192,38 +194,38 @@ func verifyAPIKey(key, encodedHash string) bool {
 	if len(parts) != 6 {
 		return false
 	}
-	
+
 	// Check algorithm
 	if parts[1] != "argon2id" {
 		return false
 	}
-	
+
 	// Parse parameters
 	var version, memory, time, threads int
 	_, err := fmt.Sscanf(parts[2], "v=%d", &version)
 	if err != nil {
 		return false
 	}
-	
+
 	_, err = fmt.Sscanf(parts[3], "m=%d,t=%d,p=%d", &memory, &time, &threads)
 	if err != nil {
 		return false
 	}
-	
+
 	// Decode salt and hash
 	salt, err := base64.RawStdEncoding.DecodeString(parts[4])
 	if err != nil {
 		return false
 	}
-	
+
 	storedHash, err := base64.RawStdEncoding.DecodeString(parts[5])
 	if err != nil {
 		return false
 	}
-	
+
 	// Compute hash with same parameters
 	computedHash := argon2.IDKey([]byte(key), salt, uint32(time), uint32(memory), uint8(threads), uint32(len(storedHash)))
-	
+
 	// Constant-time comparison
 	return subtle.ConstantTimeCompare(computedHash, storedHash) == 1
 }

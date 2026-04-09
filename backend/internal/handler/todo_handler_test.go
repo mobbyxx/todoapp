@@ -532,6 +532,7 @@ func TestTodoHandler_Complete_InvalidStatusTransition(t *testing.T) {
 		Title: "Test Todo",
 	}
 	todo, _ := service.Create(userID, input)
+	todo.Status = domain.TodoStatusCompleted
 
 	reqBody := map[string]interface{}{
 		"version": todo.Version,

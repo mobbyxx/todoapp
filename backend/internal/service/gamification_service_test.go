@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/alicebob/miniredis/v2"
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/assert"
@@ -13,9 +14,9 @@ import (
 
 type mockGamificationRepository struct {
 	mock.Mock
-	users       map[uuid.UUID]*domain.User
-	badges      map[uuid.UUID]*domain.Badge
-	userBadges  map[string]*domain.UserBadge
+	users        map[uuid.UUID]*domain.User
+	badges       map[uuid.UUID]*domain.Badge
+	userBadges   map[string]*domain.UserBadge
 	transactions []*domain.PointsTransaction
 }
 
@@ -39,6 +40,14 @@ func (m *mockGamificationRepository) GetBadgeByID(id uuid.UUID) (*domain.Badge, 
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(*domain.Badge), args.Error(1)
+}
+
+func (m *mockGamificationRepository) GetBadgeCriteria(badgeID uuid.UUID) (*domain.BadgeCriteria, error) {
+	args := m.Called(badgeID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*domain.BadgeCriteria), args.Error(1)
 }
 
 func (m *mockGamificationRepository) GetUserBadges(userID uuid.UUID) ([]*domain.UserBadge, error) {
@@ -171,21 +180,24 @@ func (m *mockAntiCheatService) CheckStatusCycle(userID uuid.UUID, todoID uuid.UU
 	return args.Error(0)
 }
 
-func setupGamificationService() (*gamificationService, *mockGamificationRepository, *mockAntiCheatService) {
+func setupGamificationService(t *testing.T) (*gamificationService, *mockGamificationRepository, *mockAntiCheatService) {
+	mr := miniredis.RunT(t)
+	redisClient := redis.NewClient(&redis.Options{Addr: mr.Addr()})
+
 	mockRepo := newMockGamificationRepository()
 	mockAntiCheat := &mockAntiCheatService{}
-	
+
 	svc := &gamificationService{
 		repo:         mockRepo,
 		antiCheatSvc: mockAntiCheat,
-		redis:        &redis.Client{},
+		redis:        redisClient,
 	}
-	
+
 	return svc, mockRepo, mockAntiCheat
 }
 
 func TestAwardXP_Success(t *testing.T) {
-	svc, mockRepo, _ := setupGamificationService()
+	svc, mockRepo, _ := setupGamificationService(t)
 	userID := uuid.New()
 
 	mockRepo.On("AddXP", userID, 10, "todo completed", mock.Anything, mock.Anything).Return(nil)
@@ -198,7 +210,7 @@ func TestAwardXP_Success(t *testing.T) {
 }
 
 func TestAwardXP_InvalidAmount(t *testing.T) {
-	svc, _, _ := setupGamificationService()
+	svc, _, _ := setupGamificationService(t)
 	userID := uuid.New()
 
 	err := svc.AwardXP(userID, 0, "test")
@@ -209,10 +221,10 @@ func TestAwardXP_InvalidAmount(t *testing.T) {
 }
 
 func TestCalculateLevel(t *testing.T) {
-	svc, _, _ := setupGamificationService()
+	svc, _, _ := setupGamificationService(t)
 
 	tests := []struct {
-		xp        int
+		xp            int
 		expectedLevel int
 	}{
 		{0, 1},
@@ -240,7 +252,7 @@ func TestCalculateLevel(t *testing.T) {
 }
 
 func TestUpdateStreak_FirstLogin(t *testing.T) {
-	svc, mockRepo, _ := setupGamificationService()
+	svc, mockRepo, _ := setupGamificationService(t)
 	userID := uuid.New()
 
 	mockRepo.On("GetStreakInfo", userID).Return(0, nil, 0, nil)
@@ -256,7 +268,7 @@ func TestUpdateStreak_FirstLogin(t *testing.T) {
 }
 
 func TestUpdateStreak_ContinueStreak(t *testing.T) {
-	svc, mockRepo, _ := setupGamificationService()
+	svc, mockRepo, _ := setupGamificationService(t)
 	userID := uuid.New()
 	lastStreak := time.Now().Add(-24 * time.Hour)
 
@@ -273,7 +285,7 @@ func TestUpdateStreak_ContinueStreak(t *testing.T) {
 }
 
 func TestUpdateStreak_SameDay(t *testing.T) {
-	svc, mockRepo, _ := setupGamificationService()
+	svc, mockRepo, _ := setupGamificationService(t)
 	userID := uuid.New()
 	lastStreak := time.Now()
 
@@ -289,7 +301,7 @@ func TestUpdateStreak_SameDay(t *testing.T) {
 }
 
 func TestUpdateStreak_UseFreezeToken(t *testing.T) {
-	svc, mockRepo, _ := setupGamificationService()
+	svc, mockRepo, _ := setupGamificationService(t)
 	userID := uuid.New()
 	lastStreak := time.Now().Add(-48 * time.Hour)
 
@@ -308,7 +320,7 @@ func TestUpdateStreak_UseFreezeToken(t *testing.T) {
 }
 
 func TestUpdateStreak_ResetStreak(t *testing.T) {
-	svc, mockRepo, _ := setupGamificationService()
+	svc, mockRepo, _ := setupGamificationService(t)
 	userID := uuid.New()
 	lastStreak := time.Now().Add(-72 * time.Hour)
 
@@ -326,7 +338,7 @@ func TestUpdateStreak_ResetStreak(t *testing.T) {
 }
 
 func TestGetUserStats(t *testing.T) {
-	svc, mockRepo, _ := setupGamificationService()
+	svc, mockRepo, _ := setupGamificationService(t)
 	userID := uuid.New()
 
 	expectedStats := &domain.UserStats{
@@ -346,7 +358,7 @@ func TestGetUserStats(t *testing.T) {
 }
 
 func TestGetPointsHistory(t *testing.T) {
-	svc, mockRepo, _ := setupGamificationService()
+	svc, mockRepo, _ := setupGamificationService(t)
 	userID := uuid.New()
 
 	expectedHistory := []*domain.PointsTransaction{
@@ -374,7 +386,7 @@ func TestGetPointsHistory(t *testing.T) {
 }
 
 func TestOnTodoCompleted(t *testing.T) {
-	svc, mockRepo, _ := setupGamificationService()
+	svc, mockRepo, _ := setupGamificationService(t)
 	userID := uuid.New()
 	completedAt := time.Now()
 

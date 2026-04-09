@@ -234,7 +234,7 @@ func (r *gamificationRepository) AddXP(userID uuid.UUID, amount int, reason stri
 func (r *gamificationRepository) GetPointsHistory(userID uuid.UUID, limit int) ([]*domain.PointsTransaction, error) {
 	query := `
 		SELECT id, user_id, amount, reason, reference_type, reference_id, created_at
-		FROM points_transactions
+		FROM points_history
 		WHERE user_id = $1
 		ORDER BY created_at DESC
 		LIMIT $2

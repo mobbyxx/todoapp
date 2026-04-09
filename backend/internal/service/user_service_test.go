@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -93,7 +94,7 @@ func TestUserService_Register_Success(t *testing.T) {
 	defer mr.Close()
 
 	email := "test@example.com"
-	password := "securepassword123"
+	password := "S3cure!Pass#2024"
 	displayName := "Test User"
 
 	user, err := service.Register(email, password, displayName)
@@ -128,7 +129,7 @@ func TestUserService_Register_DuplicateEmail(t *testing.T) {
 	defer mr.Close()
 
 	email := "test@example.com"
-	password := "securepassword123"
+	password := "S3cure!Pass#2024"
 	displayName := "Test User"
 
 	_, err := service.Register(email, password, displayName)
@@ -136,7 +137,7 @@ func TestUserService_Register_DuplicateEmail(t *testing.T) {
 		t.Fatalf("First registration should succeed: %v", err)
 	}
 
-	_, err = service.Register(email, "differentpassword", "Different Name")
+	_, err = service.Register(email, "D1fferent!Pass#2024", "Different Name")
 	if err == nil {
 		t.Fatal("Expected error for duplicate email, got nil")
 	}
@@ -212,7 +213,7 @@ func TestUserService_Login_Success(t *testing.T) {
 	defer mr.Close()
 
 	email := "test@example.com"
-	password := "securepassword123"
+	password := "S3cure!Pass#2024"
 	displayName := "Test User"
 
 	_, err := service.Register(email, password, displayName)
@@ -244,7 +245,7 @@ func TestUserService_Login_InvalidPassword(t *testing.T) {
 	defer mr.Close()
 
 	email := "test@example.com"
-	password := "securepassword123"
+	password := "S3cure!Pass#2024"
 	displayName := "Test User"
 
 	_, err := service.Register(email, password, displayName)
@@ -281,7 +282,7 @@ func TestUserService_GetUser_Success(t *testing.T) {
 	defer mr.Close()
 
 	email := "test@example.com"
-	password := "securepassword123"
+	password := "S3cure!Pass#2024"
 	displayName := "Test User"
 
 	createdUser, err := service.Register(email, password, displayName)
@@ -323,7 +324,7 @@ func TestUserService_UpdateProfile_Success(t *testing.T) {
 	defer mr.Close()
 
 	email := "test@example.com"
-	password := "securepassword123"
+	password := "S3cure!Pass#2024"
 	displayName := "Test User"
 
 	createdUser, err := service.Register(email, password, displayName)
@@ -352,7 +353,7 @@ func TestUserService_UpdateProfile_DisplayNameTooShort(t *testing.T) {
 	defer mr.Close()
 
 	email := "test@example.com"
-	password := "securepassword123"
+	password := "S3cure!Pass#2024"
 	displayName := "Test User"
 
 	createdUser, err := service.Register(email, password, displayName)
@@ -375,7 +376,7 @@ func TestUserService_UpdateProfile_DisplayNameTooLong(t *testing.T) {
 	defer mr.Close()
 
 	email := "test@example.com"
-	password := "securepassword123"
+	password := "S3cure!Pass#2024"
 	displayName := "Test User"
 
 	createdUser, err := service.Register(email, password, displayName)
@@ -417,7 +418,7 @@ func TestUserService_SoftDelete_Success(t *testing.T) {
 	defer mr.Close()
 
 	email := "test@example.com"
-	password := "securepassword123"
+	password := "S3cure!Pass#2024"
 	displayName := "Test User"
 
 	createdUser, err := service.Register(email, password, displayName)
@@ -459,7 +460,7 @@ func TestUserService_UpdateLastSeen_Success(t *testing.T) {
 	defer mr.Close()
 
 	email := "test@example.com"
-	password := "securepassword123"
+	password := "S3cure!Pass#2024"
 	displayName := "Test User"
 
 	createdUser, err := service.Register(email, password, displayName)
@@ -487,7 +488,7 @@ func TestUserService_GetUserByEmail_Success(t *testing.T) {
 	defer mr.Close()
 
 	email := "test@example.com"
-	password := "securepassword123"
+	password := "S3cure!Pass#2024"
 	displayName := "Test User"
 
 	_, err := service.Register(email, password, displayName)
@@ -529,7 +530,7 @@ func TestUserService_PasswordHashing(t *testing.T) {
 	defer mr.Close()
 
 	email := "test@example.com"
-	password := "securepassword123"
+	password := "S3cure!Pass#2024"
 	displayName := "Test User"
 
 	user, err := service.Register(email, password, displayName)
@@ -551,7 +552,7 @@ func TestUserService_EmailNormalization(t *testing.T) {
 	defer mr.Close()
 
 	email := "Test.User@Example.COM"
-	password := "securepassword123"
+	password := "S3cure!Pass#2024"
 	displayName := "Test User"
 
 	user, err := service.Register(email, password, displayName)
@@ -574,7 +575,7 @@ func TestUserService_TokenGenerationOnRegister(t *testing.T) {
 	defer mr.Close()
 
 	email := "test@example.com"
-	password := "securepassword123"
+	password := "S3cure!Pass#2024"
 	displayName := "Test User"
 
 	user, err := service.Register(email, password, displayName)
@@ -582,7 +583,7 @@ func TestUserService_TokenGenerationOnRegister(t *testing.T) {
 		t.Fatalf("Registration failed: %v", err)
 	}
 
-	tokenPair, err := jwtSvc.GenerateTokenPair(nil, user.ID.String())
+	tokenPair, err := jwtSvc.GenerateTokenPair(context.Background(), user.ID.String())
 	if err != nil {
 		t.Fatalf("Token generation failed: %v", err)
 	}

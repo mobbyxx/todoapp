@@ -93,8 +93,13 @@ func main() {
 		r.Group(func(r chi.Router) {
 			r.Use(customMiddleware.Auth(services.jwt, services.apiKey))
 
-			// User routes
-			r.Mount("/users", handlers.user.ProtectedRoutes())
+			// User + Gamification routes (merged to avoid chi Mount/Route conflict)
+			r.Route("/users/me", func(r chi.Router) {
+				r.Get("/", handlers.user.GetMe)
+				r.Put("/", handlers.user.UpdateMe)
+				r.Get("/stats", handlers.gamification.GetUserStats)
+				r.Get("/history", handlers.gamification.GetPointsHistory)
+			})
 
 			// Todo routes
 			r.Mount("/todos", handlers.todo.Routes())
@@ -112,12 +117,6 @@ func main() {
 
 			// Sync routes
 			r.Mount("/sync", handlers.sync.Routes())
-
-			// Gamification routes
-			r.Route("/users/me", func(r chi.Router) {
-				r.Get("/stats", handlers.gamification.GetUserStats)
-				r.Get("/history", handlers.gamification.GetPointsHistory)
-			})
 
 			// Reward routes
 			r.Mount("/rewards", handlers.reward.Routes())
@@ -317,6 +316,15 @@ func initServices(repos *Repositories, redisClient *redis.Client, cfg *config.Co
 		cfg.JWT.Secret,
 	)
 
+	// Shared Goal Service
+	sharedGoalService := service.NewSharedGoalService(
+		repos.sharedGoal,
+		repos.connection,
+		connectionService,
+		gamificationService,
+		notificationService,
+	)
+
 	// Todo Service
 	todoService := service.NewTodoService(
 		repos.todo,
@@ -324,6 +332,7 @@ func initServices(repos *Repositories, redisClient *redis.Client, cfg *config.Co
 		repos.user,
 		gamificationService,
 		notificationService,
+		sharedGoalService,
 	)
 
 	// Conflict Service
@@ -344,15 +353,6 @@ func initServices(repos *Repositories, redisClient *redis.Client, cfg *config.Co
 	rewardService := service.NewRewardService(
 		repos.reward,
 		gamificationService,
-	)
-
-	// Shared Goal Service
-	sharedGoalService := service.NewSharedGoalService(
-		repos.sharedGoal,
-		repos.connection,
-		connectionService,
-		gamificationService,
-		notificationService,
 	)
 
 	return &Services{

@@ -98,7 +98,7 @@ func TestAuthMiddleware_APIKey(t *testing.T) {
 	_, apiKeyService, mr := setupAuthTest(t)
 	defer mr.Close()
 
-	testUserID := uuid.MustParse("user-456")
+	testUserID := uuid.MustParse("00000000-0000-0000-0000-000000000456")
 	testKey := "ouk_v1_testkey123456789"
 
 	apiKeyService.validateFunc = func(key string) (*domain.APIKey, error) {
@@ -283,7 +283,7 @@ func TestAuthMiddleware_PrefersJWT(t *testing.T) {
 	apiKeyService.validateFunc = func(key string) (*domain.APIKey, error) {
 		return &domain.APIKey{
 			ID:       uuid.New(),
-			UserID:   uuid.MustParse("apikey-user"),
+			UserID:   uuid.MustParse("00000000-0000-0000-0000-00000000a01c"),
 			Scopes:   []string{"read:todos"},
 			IsActive: true,
 		}, nil

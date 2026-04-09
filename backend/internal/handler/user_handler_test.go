@@ -103,7 +103,7 @@ func TestUserHandler_Register_Success(t *testing.T) {
 
 	reqBody := map[string]string{
 		"email":        "test@example.com",
-		"password":     "securepassword123",
+		"password":     "S3cure!Pass#2024",
 		"display_name": "Test User",
 	}
 	jsonBody, _ := json.Marshal(reqBody)
@@ -142,7 +142,7 @@ func TestUserHandler_Register_DuplicateEmail(t *testing.T) {
 
 	reqBody := map[string]string{
 		"email":        "test@example.com",
-		"password":     "securepassword123",
+		"password":     "S3cure!Pass#2024",
 		"display_name": "Test User",
 	}
 	jsonBody, _ := json.Marshal(reqBody)
@@ -172,7 +172,7 @@ func TestUserHandler_Register_InvalidEmail(t *testing.T) {
 
 	reqBody := map[string]string{
 		"email":        "invalid-email",
-		"password":     "securepassword123",
+		"password":     "S3cure!Pass#2024",
 		"display_name": "Test User",
 	}
 	jsonBody, _ := json.Marshal(reqBody)
@@ -216,7 +216,7 @@ func TestUserHandler_Login_Success(t *testing.T) {
 
 	registerBody := map[string]string{
 		"email":        "test@example.com",
-		"password":     "securepassword123",
+		"password":     "S3cure!Pass#2024",
 		"display_name": "Test User",
 	}
 	jsonBody, _ := json.Marshal(registerBody)
@@ -232,7 +232,7 @@ func TestUserHandler_Login_Success(t *testing.T) {
 
 	loginBody := map[string]string{
 		"email":    "test@example.com",
-		"password": "securepassword123",
+		"password": "S3cure!Pass#2024",
 	}
 	jsonBody, _ = json.Marshal(loginBody)
 
@@ -265,7 +265,7 @@ func TestUserHandler_Login_InvalidCredentials(t *testing.T) {
 
 	registerBody := map[string]string{
 		"email":        "test@example.com",
-		"password":     "securepassword123",
+		"password":     "S3cure!Pass#2024",
 		"display_name": "Test User",
 	}
 	jsonBody, _ := json.Marshal(registerBody)
@@ -317,7 +317,7 @@ func TestUserHandler_Refresh_Success(t *testing.T) {
 
 	registerBody := map[string]string{
 		"email":        "test@example.com",
-		"password":     "securepassword123",
+		"password":     "S3cure!Pass#2024",
 		"display_name": "Test User",
 	}
 	jsonBody, _ := json.Marshal(registerBody)
@@ -387,7 +387,7 @@ func TestUserHandler_Logout_Success(t *testing.T) {
 
 	registerBody := map[string]string{
 		"email":        "test@example.com",
-		"password":     "securepassword123",
+		"password":     "S3cure!Pass#2024",
 		"display_name": "Test User",
 	}
 	jsonBody, _ := json.Marshal(registerBody)
@@ -425,7 +425,7 @@ func TestUserHandler_GetMe_Success(t *testing.T) {
 
 	registerBody := map[string]string{
 		"email":        "test@example.com",
-		"password":     "securepassword123",
+		"password":     "S3cure!Pass#2024",
 		"display_name": "Test User",
 	}
 	jsonBody, _ := json.Marshal(registerBody)
@@ -485,7 +485,7 @@ func TestUserHandler_UpdateMe_Success(t *testing.T) {
 
 	registerBody := map[string]string{
 		"email":        "test@example.com",
-		"password":     "securepassword123",
+		"password":     "S3cure!Pass#2024",
 		"display_name": "Test User",
 	}
 	jsonBody, _ := json.Marshal(registerBody)
@@ -537,7 +537,7 @@ func TestUserHandler_UpdateMe_InvalidDisplayName(t *testing.T) {
 
 	registerBody := map[string]string{
 		"email":        "test@example.com",
-		"password":     "securepassword123",
+		"password":     "S3cure!Pass#2024",
 		"display_name": "Test User",
 	}
 	jsonBody, _ := json.Marshal(registerBody)

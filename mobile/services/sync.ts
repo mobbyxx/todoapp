@@ -1,8 +1,8 @@
-import { synchronize, SyncPullResult, SyncPushResult } from '@nozbe/watermelondb/sync';
+import { synchronize, SyncPullResult } from '@nozbe/watermelondb/sync';
 import { AxiosError } from 'axios';
 import { api, handleApiError } from './api';
 import { database } from './database';
-import type { Todo, TodoStatus, TodoPriority, ConnectionStatus, BadgeType } from '../types';
+import type { Todo } from '../types';
 
 export interface SyncStatus {
   isSyncing: boolean;
@@ -40,11 +40,12 @@ export function getSyncStatus(): SyncStatus {
 export async function updatePendingChangesCount(): Promise<number> {
   try {
     const todosCollection = database.get('todos');
-    const unsyncedTodos = await todosCollection.query(
-      database.collections.get('todos').query()._rawPredicate as any
-    ).fetch();
+    const allTodos = await todosCollection.query().fetch();
     
-    const pendingCount = unsyncedTodos.filter((todo: any) => !todo.isSynced).length;
+    const pendingCount = allTodos.filter((todo) => {
+      const record = todo._raw;
+      return record._status !== 'synced';
+    }).length;
     updateStatus({ pendingChanges: pendingCount });
     return pendingCount;
   } catch (error) {
@@ -63,7 +64,7 @@ export async function syncDatabase(): Promise<void> {
   try {
     await synchronize({
       database,
-      pullChanges: async ({ lastPulledAt, schemaVersion, migration }) => {
+      pullChanges: async ({ lastPulledAt }) => {
         try {
           const response = await api.get('/sync/todos', {
             params: { last_synced_at: lastPulledAt },

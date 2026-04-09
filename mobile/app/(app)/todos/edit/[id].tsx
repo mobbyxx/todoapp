@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { Stack, useLocalSearchParams, router } from 'expo-router';
 import { useTodo, useTodos } from '../../../../hooks/useTodos';
-import { TodoCreateInput, TodoUpdateInput } from '../../../../types';
+import { Todo, TodoCreateInput, TodoUpdateInput } from '../../../../types';
 import { TodoForm } from '../../../../components/TodoForm';
 
 export default function EditTodoScreen() {
@@ -64,12 +64,15 @@ export default function EditTodoScreen() {
   }
 
   const todoData = todo.toJSON();
-  const todoFormData = {
+  const todoFormData: Todo = {
     ...todoData,
-    description: todoData.description || undefined,
-    assigned_to: todoData.assigned_to || undefined,
-    due_date: todoData.due_date || undefined,
-    tags: todoData.tags || undefined,
+    description: todoData.description ?? undefined,
+    assigned_to: todoData.assigned_to ?? undefined,
+    due_date: todoData.due_date ?? undefined,
+    completed_at: todoData.completed_at ?? undefined,
+    tags: todoData.tags?.length ? todoData.tags : undefined,
+    created_at: new Date(todoData.created_at).toISOString(),
+    updated_at: new Date(todoData.updated_at).toISOString(),
   };
 
   return (

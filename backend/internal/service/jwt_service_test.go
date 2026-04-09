@@ -2,11 +2,11 @@ package service
 
 import (
 	"context"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/alicebob/miniredis/v2"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -236,10 +236,25 @@ func TestValidateAccessToken_ExpiredToken(t *testing.T) {
 
 	ctx := context.Background()
 
-	expiredToken := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoidXNlci0xMjMiLCJ0b2tlbl92ZXJzaW9uIjoxLCJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNjAwMDAwMDAwLCJpYXQiOjE2MDAwMDAwMDB9.invalid"
+	expiredClaims := CustomClaims{
+		UserID:       "user-123",
+		TokenVersion: 1,
+		TokenType:    accessTokenType,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(-1 * time.Hour)),
+			IssuedAt:  jwt.NewNumericDate(time.Now().Add(-2 * time.Hour)),
+			NotBefore: jwt.NewNumericDate(time.Now().Add(-2 * time.Hour)),
+			Subject:   "user-123",
+		},
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, expiredClaims)
+	expiredToken, err := token.SignedString([]byte("test-secret-key-for-jwt-signing"))
+	if err != nil {
+		t.Fatalf("Failed to create expired token: %v", err)
+	}
 
-	_, err := service.ValidateAccessToken(ctx, expiredToken)
-	if err != ErrTokenExpired && !strings.Contains(err.Error(), "expired") {
+	_, err = service.ValidateAccessToken(ctx, expiredToken)
+	if err != ErrTokenExpired {
 		t.Errorf("Expected ErrTokenExpired, got %v", err)
 	}
 }
@@ -255,6 +270,8 @@ func TestValidateRefreshToken_Success(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GenerateTokenPair failed: %v", err)
 	}
+
+	time.Sleep(1 * time.Second)
 
 	newTokenPair, err := service.ValidateRefreshToken(ctx, tokenPair.RefreshToken)
 	if err != nil {
@@ -394,9 +411,24 @@ func TestRevokeToken_ExpiredToken(t *testing.T) {
 
 	ctx := context.Background()
 
-	expiredToken := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoidXNlci0xMjMiLCJ0b2tlbl92ZXJzaW9uIjoxLCJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNjAwMDAwMDAwLCJpYXQiOjE2MDAwMDAwMDB9.invalid"
+	expiredClaims := CustomClaims{
+		UserID:       "user-123",
+		TokenVersion: 1,
+		TokenType:    accessTokenType,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(-1 * time.Hour)),
+			IssuedAt:  jwt.NewNumericDate(time.Now().Add(-2 * time.Hour)),
+			NotBefore: jwt.NewNumericDate(time.Now().Add(-2 * time.Hour)),
+			Subject:   "user-123",
+		},
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, expiredClaims)
+	expiredToken, err := token.SignedString([]byte("test-secret-key-for-jwt-signing"))
+	if err != nil {
+		t.Fatalf("Failed to create expired token: %v", err)
+	}
 
-	err := service.RevokeToken(ctx, expiredToken)
+	err = service.RevokeToken(ctx, expiredToken)
 	if err != nil {
 		t.Errorf("Expected no error for expired token, got %v", err)
 	}

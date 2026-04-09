@@ -202,10 +202,10 @@ func (h *RewardHandler) GetMyRedemptions(w http.ResponseWriter, r *http.Request)
 func (h *RewardHandler) Routes() chi.Router {
 	r := chi.NewRouter()
 
-	r.Post("/rewards", h.Create)
-	r.Get("/rewards", h.List)
-	r.Post("/rewards/{id}/redeem", h.Redeem)
-	r.Get("/rewards/my", h.GetMyRedemptions)
+	r.Post("/", h.Create)
+	r.Get("/", h.List)
+	r.Post("/{id}/redeem", h.Redeem)
+	r.Get("/my", h.GetMyRedemptions)
 
 	return r
 }

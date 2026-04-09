@@ -43,7 +43,8 @@ func (m *mockConnectionRepository) GetByID(id uuid.UUID) (*domain.Connection, er
 }
 
 func (m *mockConnectionRepository) GetByUsers(userID, friendID uuid.UUID) (*domain.Connection, error) {
-	key := fmt.Sprintf("%s:%s", userID, friendID)
+	userAID, userBID := domain.NormalizeUserPair(userID, friendID)
+	key := fmt.Sprintf("%s:%s", userAID, userBID)
 	if conn, ok := m.byUsers[key]; ok {
 		return conn, nil
 	}
@@ -93,7 +94,8 @@ func (m *mockConnectionRepository) GetByUserID(userID uuid.UUID) ([]*domain.Conn
 }
 
 func (m *mockConnectionRepository) GetByUserPair(userAID, userBID uuid.UUID) (*domain.Connection, error) {
-	key := fmt.Sprintf("%s:%s", userAID, userBID)
+	normalizedAID, normalizedBID := domain.NormalizeUserPair(userAID, userBID)
+	key := fmt.Sprintf("%s:%s", normalizedAID, normalizedBID)
 	if conn, ok := m.byUsers[key]; ok {
 		return conn, nil
 	}
@@ -297,8 +299,10 @@ func TestScanQRCode_InvalidUserID(t *testing.T) {
 	payload := &domain.QRCodePayload{
 		UserID:    "invalid-uuid",
 		Timestamp: time.Now().Unix(),
-		Signature: "some-signature",
 	}
+
+	sig, _ := service.signPayload(payload)
+	payload.Signature = sig
 
 	_, err := service.ScanQRCode(userB, payload)
 	if !errors.Is(err, domain.ErrInvalidQRCode) {
@@ -432,8 +436,8 @@ func TestRemoveConnection_Forbidden(t *testing.T) {
 	conn, _ := service.ScanQRCode(userA, payload)
 
 	err := service.RemoveConnection(userC, conn.ID)
-	if !errors.Is(err, domain.ErrForbidden) {
-		t.Errorf("Expected ErrForbidden, got %v", err)
+	if !errors.Is(err, domain.ErrUnauthorizedAction) {
+		t.Errorf("Expected ErrUnauthorizedAction, got %v", err)
 	}
 }
 

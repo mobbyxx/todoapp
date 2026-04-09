@@ -15,6 +15,7 @@ type todoService struct {
 	userRepo        domain.UserRepository
 	gamificationSvc domain.GamificationService
 	notificationSvc domain.NotificationService
+	sharedGoalSvc   domain.SharedGoalService
 	validate        *validator.Validate
 }
 
@@ -24,6 +25,7 @@ func NewTodoService(
 	userRepo domain.UserRepository,
 	gamificationSvc domain.GamificationService,
 	notificationSvc domain.NotificationService,
+	sharedGoalSvc domain.SharedGoalService,
 ) domain.TodoService {
 	return &todoService{
 		todoRepo:        todoRepo,
@@ -31,6 +33,7 @@ func NewTodoService(
 		userRepo:        userRepo,
 		gamificationSvc: gamificationSvc,
 		notificationSvc: notificationSvc,
+		sharedGoalSvc:   sharedGoalSvc,
 		validate:        validator.New(),
 	}
 }
@@ -226,6 +229,7 @@ func (s *todoService) Complete(userID uuid.UUID, todoID uuid.UUID, version int) 
 	}
 
 	s.triggerGamification(todo, userID)
+	s.triggerSharedGoals(userID)
 	s.queueTodoCompletedNotification(todo, userID)
 	observability.RecordTodoCompleted(userID.String())
 
@@ -259,6 +263,13 @@ func (s *todoService) validateAssignee(currentUserID, assigneeID uuid.UUID) erro
 func (s *todoService) triggerGamification(todo *domain.Todo, userID uuid.UUID) {
 	if s.gamificationSvc != nil {
 		s.gamificationSvc.OnTodoCompleted(userID, todo.UpdatedAt)
+		s.gamificationSvc.CheckAndAwardBadges(userID)
+	}
+}
+
+func (s *todoService) triggerSharedGoals(userID uuid.UUID) {
+	if s.sharedGoalSvc != nil {
+		s.sharedGoalSvc.OnTodoCompleted(userID)
 	}
 }
 

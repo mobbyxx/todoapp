@@ -280,7 +280,7 @@ func TestProcessQueue_WithFailure(t *testing.T) {
 	}
 
 	mockRepo.On("Dequeue", 10).Return([]*domain.NotificationQueueItem{item}, nil)
-	mockRepo.On("MarkFailed", item.ID, mock.AnythingOfType("string")).Return(nil)
+	mockRepo.On("MarkSent", item.ID).Return(nil)
 
 	err := svc.ProcessQueue(10)
 

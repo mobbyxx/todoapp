@@ -1,39 +1,17 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Q } from '@nozbe/watermelondb';
 import { database } from '../services/database';
+import Todo from '../models/Todo';
 import type { TodoStatus, TodoPriority } from '../types';
 
-interface TodoModel {
-  id: string;
-  title: string;
-  description: string | null;
-  status: TodoStatus;
-  priority: TodoPriority;
-  createdBy: string;
-  assignedTo: string | null;
-  dueDate: string | null;
-  completedAt: string | null;
-  version: number;
-  tags: string | null;
-  serverId: string | null;
-  isSynced: boolean;
-  syncedAt: number | null;
-  createdAt: number;
-  updatedAt: number;
-  toggleComplete(): Promise<void>;
-  markAsDeleted(): Promise<void>;
-  update(updater: (record: any) => void): Promise<void>;
-  toJSON(): any;
-}
-
 export function useTodos(status?: TodoStatus | 'all') {
-  const [todos, setTodos] = useState<TodoModel[]>([]);
+  const [todos, setTodos] = useState<Todo[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     setIsLoading(true);
     
-    const todosCollection = database.get('todos');
+    const todosCollection = database.get<Todo>('todos');
     let query = todosCollection.query();
     
     if (status && status !== 'all') {
@@ -42,7 +20,7 @@ export function useTodos(status?: TodoStatus | 'all') {
 
     const subscription = query.observe().subscribe(
       (data) => {
-        setTodos(data as unknown as TodoModel[]);
+        setTodos(data);
         setIsLoading(false);
       },
       (error) => {
@@ -62,13 +40,13 @@ export function useTodos(status?: TodoStatus | 'all') {
     assignedTo?: string;
     tags?: string[];
   }) => {
-    const todosCollection = database.get('todos');
+    const todosCollection = database.get<Todo>('todos');
     const createdTodo = await database.write(async () => {
-      return await todosCollection.create((todo: any) => {
+      return await todosCollection.create((todo) => {
         todo.title = data.title;
         todo.description = data.description || null;
-        todo.status = 'pending';
-        todo.priority = data.priority || 'medium';
+        todo.status = 'pending' as TodoStatus;
+        todo.priority = (data.priority || 'medium') as TodoPriority;
         todo.createdBy = 'current_user';
         todo.assignedTo = data.assignedTo || null;
         todo.dueDate = data.dueDate || null;
@@ -80,7 +58,7 @@ export function useTodos(status?: TodoStatus | 'all') {
         todo.syncedAt = null;
       });
     });
-    return createdTodo as unknown as TodoModel;
+    return createdTodo;
   }, []);
 
   const updateTodo = useCallback(async (id: string, updates: {
@@ -92,10 +70,10 @@ export function useTodos(status?: TodoStatus | 'all') {
     assignedTo?: string;
     tags?: string[];
   }) => {
-    const todo = await database.get('todos').find(id) as unknown as TodoModel;
+    const todo = await database.get<Todo>('todos').find(id);
     
     await database.write(async () => {
-      await todo.update((record: any) => {
+      await todo.update((record) => {
         if (updates.title !== undefined) record.title = updates.title;
         if (updates.description !== undefined) record.description = updates.description || null;
         if (updates.status !== undefined) record.status = updates.status;
@@ -112,7 +90,7 @@ export function useTodos(status?: TodoStatus | 'all') {
   }, []);
 
   const deleteTodo = useCallback(async (id: string) => {
-    const todo = await database.get('todos').find(id) as unknown as TodoModel;
+    const todo = await database.get<Todo>('todos').find(id);
     
     await database.write(async () => {
       await todo.markAsDeleted();
@@ -120,16 +98,10 @@ export function useTodos(status?: TodoStatus | 'all') {
   }, []);
 
   const toggleTodoComplete = useCallback(async (id: string) => {
-    const todo = await database.get('todos').find(id) as unknown as TodoModel;
-    const newStatus: TodoStatus = todo.status === 'completed' ? 'pending' : 'completed';
-    const completedAt = newStatus === 'completed' ? new Date().toISOString() : null;
+    const todo = await database.get<Todo>('todos').find(id);
     
     await database.write(async () => {
-      await todo.update((record: any) => {
-        record.status = newStatus;
-        record.completedAt = completedAt;
-        record.isSynced = false;
-      });
+      await todo.toggleComplete();
     });
     
     return todo;
@@ -146,7 +118,7 @@ export function useTodos(status?: TodoStatus | 'all') {
 }
 
 export function useTodo(id: string | null) {
-  const [todo, setTodo] = useState<TodoModel | null>(null);
+  const [todo, setTodo] = useState<Todo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -159,11 +131,11 @@ export function useTodo(id: string | null) {
     setIsLoading(true);
 
     const subscription = database
-      .get('todos')
+      .get<Todo>('todos')
       .findAndObserve(id)
       .subscribe(
         (data) => {
-          setTodo(data as unknown as TodoModel);
+          setTodo(data);
           setIsLoading(false);
         },
         (error) => {

@@ -285,10 +285,10 @@ func (h *UserHandler) UpdateMe(w http.ResponseWriter, r *http.Request) {
 func (h *UserHandler) Routes() chi.Router {
 	r := chi.NewRouter()
 
-	r.Post("/auth/register", h.Register)
-	r.Post("/auth/login", h.Login)
-	r.Post("/auth/refresh", h.Refresh)
-	r.Post("/auth/logout", h.Logout)
+	r.Post("/register", h.Register)
+	r.Post("/login", h.Login)
+	r.Post("/refresh", h.Refresh)
+	r.Post("/logout", h.Logout)
 
 	return r
 }
@@ -296,8 +296,8 @@ func (h *UserHandler) Routes() chi.Router {
 func (h *UserHandler) ProtectedRoutes() chi.Router {
 	r := chi.NewRouter()
 
-	r.Get("/users/me", h.GetMe)
-	r.Put("/users/me", h.UpdateMe)
+	r.Get("/me", h.GetMe)
+	r.Put("/me", h.UpdateMe)
 
 	return r
 }

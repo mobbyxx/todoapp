@@ -8,7 +8,7 @@ Eine kollaborative Todo-App mit Gamification-Features für 1:1 Verbindungen. Ent
 ## 🚀 Features
 
 ### Core Features
-- ✅ **Benutzer-Authentifizierung** - JWT & API Keys mit Argon2id
+- ✅ **Benutzer-Authentifizierung** - JWT mit Argon2id (API Key Service existiert, aber nicht in Runtime verdrahtet — `noopAPIKeyService` aktiv, kein Repository implementiert)
 - ✅ **1:1 Verbindungen** - Einladungslinks & QR-Code Verbindungen
 - ✅ **Geteilte Todos** - CRUD mit optimistischem Locking
 - ✅ **Offline-First** - WatermelonDB mit Delta-Sync
@@ -59,7 +59,7 @@ todoapp/
 ## 🛠️ Technologie-Stack
 
 ### Backend
-- **Go 1.21+** mit Chi Router
+- **Go 1.23+** mit Chi Router
 - **PostgreSQL 15** - Primäre Datenbank
 - **Redis 7** - Caching & Sessions
 - **JWT** - Authentication
@@ -84,10 +84,14 @@ todoapp/
 ## 🚀 Quick Start
 
 ### Voraussetzungen
-- Docker & Docker Compose
-- Go 1.21+ (für lokale Entwicklung)
-- Node.js 18+ (für Mobile)
-- Expo Account (für Builds)
+
+| Komponente | Minimum | Empfohlen |
+|---|---|---|
+| Docker & Docker Compose | v20+ | v24+ |
+| Go | 1.23+ | 1.23+ |
+| Node.js | 18+ | 20 LTS |
+| yarn | 4.x (via corepack) | 4.x |
+| Expo Go App | — | Auf dem Handy installieren |
 
 ### 1. Repository klonen
 
@@ -99,32 +103,67 @@ cd todoapp
 ### 2. Backend starten
 
 ```bash
-# Environment kopieren
-cp backend/.env.example backend/.env
-# .env anpassen mit deinen Credentials
+# Docker Services (PostgreSQL + Redis)
+docker-compose up -d postgres redis
 
-# Docker Services starten
-docker-compose up -d
+# Warten bis postgres bereit ist
+sleep 3
 
-# API Server starten
+# Backend starten
 cd backend
 go mod download
-go run cmd/api/main.go
+
+# Pflicht-Umgebungsvariablen:
+export DB_URL="postgres://todoapp:todoapp@localhost:5432/todoapp?sslmode=disable"
+export REDIS_URL="redis://localhost:6379"
+export JWT_SECRET="change-me-in-production"
+export PORT=8090
+
+go run ./cmd/api
 ```
 
-Die API ist nun unter `http://localhost:8080` verfügbar.
+Die API ist nun unter `http://localhost:8090` verfügbar.  
+Health Check: `curl http://localhost:8090/health/live`
 
 ### 3. Mobile App starten
 
+> **⚠️ Bekanntes Problem:** `package.json` hat React Native 0.81 + React 19, aber Expo SDK 52 erwartet RN 0.76 + React 18. Vor dem Start muss auf **Expo SDK 53** aktualisiert werden (unterstützt RN 0.81 + React 19).
+
 ```bash
 cd mobile
-npm install
+
+# Abhängigkeiten installieren
+corepack enable
+yarn install
+
+# TypeScript prüfen (muss fehlerfrei sein)
+npx tsc --noEmit
+
+# Expo SDK 53 Upgrade (einmalig nötig!)
+npx expo install expo@^53 --fix
+
+# Starten
 npx expo start
 ```
 
-Scannen Sie den QR-Code mit der Expo Go App oder drücken Sie:
-- `i` für iOS Simulator
-- `a` für Android Emulator
+**Auf dem iPhone/Android:**
+1. [Expo Go](https://expo.dev/go) aus dem App Store installieren
+2. QR-Code scannen (iOS: Kamera-App, Android: Expo Go direkt)
+3. Handy und Computer müssen im selben WLAN sein
+
+**Im Simulator:**
+- `i` → iOS Simulator (macOS + Xcode nötig)
+- `a` → Android Emulator (Android Studio nötig)
+
+**API-Verbindung konfigurieren:**
+Die Mobile-App verbindet sich standardmäßig mit der API-URL aus `mobile/services/api.ts`. Für lokale Entwicklung die eigene IP einsetzen (nicht `localhost` — das ist auf dem Handy das Handy selbst):
+```bash
+# Eigene IP finden (macOS)
+ifconfig | grep "inet " | grep -v 127.0.0.1
+
+# Dann in mobile/services/api.ts:
+# API_URL = "http://192.168.x.x:8090"
+```
 
 ## 🧪 Testing
 
@@ -256,29 +295,29 @@ docker-compose logs -f nginx
 
 ### Wichtige Umgebungsvariablen
 
-**Backend (.env)**
+**Backend**
 ```env
-# Database
-DB_URL=postgres://user:pass@localhost:5432/todoapp?sslmode=disable
+# Database (Pflicht)
+DB_URL=postgres://todoapp:todoapp@localhost:5432/todoapp?sslmode=disable
 
-# Redis
+# Redis (Pflicht)
 REDIS_URL=redis://localhost:6379
 
-# JWT
-JWT_SECRET=your-secret-key-here
-
-# FCM (Push Notifications)
-FCM_API_KEY=your-fcm-api-key
+# JWT (Pflicht)
+JWT_SECRET=change-me-in-production
 
 # Server
-PORT=8080
+PORT=8090
 API_DOMAIN=api.todoapp.com
+
+# FCM (Optional — Push Notifications)
+FCM_API_KEY=your-fcm-api-key
 ```
 
-**Mobile (.env)**
-```env
-API_URL=https://api.todoapp.com
-API_KEY=your-api-key
+**Mobile**  
+API-URL wird in `mobile/services/api.ts` gesetzt. Für lokale Entwicklung die eigene LAN-IP verwenden:
+```
+http://192.168.x.x:8090
 ```
 
 ## 📝 API Dokumentation
@@ -303,37 +342,35 @@ POST   /api/v1/sync                   # Delta Sync
 
 ## 🎯 Nächste Schritte
 
-### 🔴 Kritisch (Sollte vor Launch erledigt werden)
+### ✅ Erledigt
 
-1. **TypeScript Konfiguration fixen**
-   - Problem: Decorator Fehler in Mobile
-   - Lösung: `mobile/tsconfig.json` aktualisieren:
-   ```json
-   {
-     "compilerOptions": {
-       "experimentalDecorators": true,
-       "emitDecoratorMetadata": true
-     }
-   }
-   ```
+1. ~~**TypeScript Konfiguration fixen**~~ — `experimentalDecorators` + `emitDecoratorMetadata` hinzugefügt
+2. ~~**Badge Auto-Award implementieren**~~ — Vollständige Implementierung inkl. Wiring in Todo-Completion-Flow
+3. ~~**Alle Backend-Tests fixen**~~ — 31 Testfehler behoben, `go test ./...` grün
 
-2. **Badge Auto-Award implementieren**
-   - Problem: `CheckAndAwardBadges()` ist nur ein Stub
-   - Datei: `backend/internal/service/gamification_service.go`
-   - Muss aufgerufen werden bei: Todo Complete, Streak Update
+### 🟡 Wichtig (Vor Launch)
 
-### 🟡 Wichtig (Kurz nach Launch)
-
-3. **Tests ausführen & Coverage erhöhen**
-   - Aktuell: ~34% Coverage
+4. **Test Coverage erhöhen**
+   - Aktuell: ~30% Coverage
    - Ziel: >80% Coverage
-   - Fokus auf: User Service, Auth Middleware
+   - Fehlend: Repository-Layer, Main-Entrypoints, Domain-Utilities
 
-4. **E2E Tests ausführen**
-   - Maestro Tests auf realen Geräten testen
-   - Flaky Tests identifizieren & fixen
+5. **Mobile: Expo SDK 53 Upgrade + Unit Tests schreiben**
+   - `yarn install` + `tsc --noEmit` bestanden ✅
+   - Expo SDK 52 → 53 nötig (RN 0.81 + React 19 Support)
+   - Aktuell: 0 Jest/Testing-Library Tests
+   - Vorhanden: 5 Maestro E2E Specs (YAML)
+   - Metro Bundler startet noch nicht (SDK-Version-Mismatch)
 
-5. **Performance Optimierung**
+6. **Badge-Vergabe bei Streak-Update wiren**
+   - `CheckAndAwardBadges` wird bei Todo-Completion aufgerufen
+   - Fehlt noch: Aufruf bei Streak-Updates (für streak-basierte Badges)
+
+7. **CI/CD Secrets konfigurieren**
+   - 21 GitHub Secrets benötigt (DB, Redis, JWT, Expo, Store Credentials)
+   - SSL-Zertifikate + DNS (api.todo.com, staging-api.todo.com)
+
+8. **Performance Optimierung**
    - API Response Time < 200ms (p95)
    - Mobile App Start < 3s
    - Bundle Size analysieren
@@ -394,8 +431,8 @@ Dieses Projekt ist unter der MIT Lizenz lizenziert. Siehe [LICENSE](LICENSE) fü
 
 ---
 
-**Status:** ✅ 36/36 Tasks Completed (100%)
+**Status:** Backend stabil — Tests grün (31 Fixes), 25/25 API-Endpoints getestet, Badge-System implementiert + in Todo-Completion gewired, Routing + Schema-Bugs behoben. Mobile: TypeScript kompiliert fehlerfrei, Expo SDK 52→53 Upgrade ausstehend für Metro-Start. Verbleibend: Test Coverage (~30% → 80%), Expo SDK Upgrade, Mobile Unit Tests, CI/CD Secrets.
 
-**Letztes Update:** April 2025
+**Letztes Update:** April 2026
 
 **Repository:** https://github.com/mobbyxx/todoapp

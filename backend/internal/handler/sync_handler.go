@@ -13,16 +13,16 @@ import (
 )
 
 type SyncHandler struct {
-	syncService    domain.SyncService
+	syncService     domain.SyncService
 	conflictService domain.ConflictService
-	validate       *validator.Validate
+	validate        *validator.Validate
 }
 
 func NewSyncHandler(syncService domain.SyncService, conflictService domain.ConflictService) *SyncHandler {
 	return &SyncHandler{
-		syncService:    syncService,
+		syncService:     syncService,
 		conflictService: conflictService,
-		validate:       validator.New(),
+		validate:        validator.New(),
 	}
 }
 
@@ -32,11 +32,11 @@ type syncRequest struct {
 }
 
 type syncResponse struct {
-	Timestamp  domain.HLC        `json:"timestamp"`
-	Changes    domain.ChangeSet  `json:"changes"`
+	Timestamp  domain.HLC             `json:"timestamp"`
+	Changes    domain.ChangeSet       `json:"changes"`
 	Conflicts  []*domain.SyncConflict `json:"conflicts"`
-	Status     domain.SyncStatus `json:"status"`
-	ServerTime int64             `json:"server_time"`
+	Status     domain.SyncStatus      `json:"status"`
+	ServerTime int64                  `json:"server_time"`
 }
 
 func (h *SyncHandler) Sync(w http.ResponseWriter, r *http.Request) {
@@ -194,8 +194,8 @@ func (h *SyncHandler) ResolveConflict(w http.ResponseWriter, r *http.Request) {
 func (h *SyncHandler) Routes() chi.Router {
 	r := chi.NewRouter()
 
-	r.Post("/sync", h.Sync)
-	r.Get("/sync/last", h.GetLastSync)
+	r.Post("/", h.Sync)
+	r.Get("/last", h.GetLastSync)
 	r.Get("/conflicts", h.GetUnresolvedConflicts)
 	r.Post("/conflicts/{conflictID}/resolve", h.ResolveConflict)
 

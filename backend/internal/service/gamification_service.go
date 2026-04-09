@@ -206,19 +206,157 @@ func (s *gamificationService) OnConnectionAdded(userID uuid.UUID) {
 }
 
 func (s *gamificationService) CheckAndAwardBadges(userID uuid.UUID) ([]*domain.Badge, error) {
-	return []*domain.Badge{}, nil
+	allBadges, err := s.repo.GetAllBadges()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get badges: %w", err)
+	}
+
+	var awarded []*domain.Badge
+	for _, badge := range allBadges {
+		has, err := s.repo.HasBadge(userID, badge.ID)
+		if err != nil {
+			log.Warn().Err(err).Str("user_id", userID.String()).Str("badge_id", badge.ID.String()).Msg("failed to check badge ownership")
+			continue
+		}
+		if has {
+			continue
+		}
+
+		met, err := s.EvaluateBadgeCriteria(userID, badge)
+		if err != nil {
+			log.Warn().Err(err).Str("user_id", userID.String()).Str("badge", badge.Name).Msg("failed to evaluate badge criteria")
+			continue
+		}
+		if !met {
+			continue
+		}
+
+		userBadge, err := s.AwardBadge(userID, badge.ID)
+		if err != nil {
+			log.Warn().Err(err).Str("user_id", userID.String()).Str("badge", badge.Name).Msg("failed to award badge")
+			continue
+		}
+		if userBadge != nil {
+			awarded = append(awarded, badge)
+			s.queueBadgeEarnedNotification(userID, badge)
+		}
+	}
+
+	return awarded, nil
 }
 
 func (s *gamificationService) EvaluateBadgeCriteria(userID uuid.UUID, badge *domain.Badge) (bool, error) {
-	return false, nil
+	criteria, err := s.repo.GetBadgeCriteria(badge.ID)
+	if err != nil {
+		return false, fmt.Errorf("failed to get badge criteria: %w", err)
+	}
+
+	switch criteria.Type {
+	case "todo_completed":
+		count, err := s.repo.CountCompletedTodos(userID)
+		if err != nil {
+			return false, err
+		}
+		return count >= criteria.Count, nil
+
+	case "streak":
+		streakCount, _, _, err := s.repo.GetStreakInfo(userID)
+		if err != nil {
+			return false, err
+		}
+		return streakCount >= criteria.Days, nil
+
+	case "shared_tasks":
+		count, err := s.repo.CountConnections(userID)
+		if err != nil {
+			return false, err
+		}
+		return count >= criteria.Count, nil
+
+	case "early_completion":
+		count, err := s.repo.CountEarlyCompletions(userID, criteria.BeforeHour)
+		if err != nil {
+			return false, err
+		}
+		return count >= criteria.Count, nil
+
+	default:
+		log.Warn().Str("type", criteria.Type).Str("badge", badge.Name).Msg("unknown badge criteria type")
+		return false, nil
+	}
 }
 
 func (s *gamificationService) GetUserBadges(userID uuid.UUID) ([]*domain.BadgeWithEarned, error) {
-	return []*domain.BadgeWithEarned{}, nil
+	allBadges, err := s.repo.GetAllBadges()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get all badges: %w", err)
+	}
+
+	earnedBadges, err := s.repo.GetUserBadges(userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user badges: %w", err)
+	}
+
+	earnedMap := make(map[uuid.UUID]time.Time, len(earnedBadges))
+	for _, ub := range earnedBadges {
+		earnedMap[ub.BadgeID] = ub.EarnedAt
+	}
+
+	result := make([]*domain.BadgeWithEarned, 0, len(allBadges))
+	for _, badge := range allBadges {
+		bwe := &domain.BadgeWithEarned{
+			Badge: *badge,
+		}
+		if earnedAt, ok := earnedMap[badge.ID]; ok {
+			bwe.Earned = true
+			t := earnedAt
+			bwe.EarnedAt = &t
+		}
+		result = append(result, bwe)
+	}
+
+	return result, nil
 }
 
 func (s *gamificationService) AwardBadge(userID uuid.UUID, badgeID uuid.UUID) (*domain.UserBadge, error) {
-	return nil, nil
+	has, err := s.repo.HasBadge(userID, badgeID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check badge: %w", err)
+	}
+	if has {
+		return nil, nil
+	}
+
+	badge, err := s.repo.GetBadgeByID(badgeID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get badge: %w", err)
+	}
+
+	userBadge := &domain.UserBadge{
+		ID:       uuid.New(),
+		UserID:   userID,
+		BadgeID:  badgeID,
+		EarnedAt: time.Now(),
+	}
+
+	if err := s.repo.AwardBadge(userBadge); err != nil {
+		return nil, fmt.Errorf("failed to award badge: %w", err)
+	}
+
+	if badge.PointsValue > 0 {
+		err = s.repo.AddXP(userID, badge.PointsValue, string(domain.TransactionReasonBadgeEarned), "badge", badgeID)
+		if err != nil {
+			log.Warn().Err(err).Str("user_id", userID.String()).Str("badge_id", badgeID.String()).Msg("failed to award badge XP")
+		}
+	}
+
+	log.Info().
+		Str("user_id", userID.String()).
+		Str("badge_id", badgeID.String()).
+		Str("badge_name", badge.Name).
+		Msg("badge awarded")
+
+	return userBadge, nil
 }
 
 func (s *gamificationService) queueBadgeEarnedNotification(userID uuid.UUID, badge *domain.Badge) {

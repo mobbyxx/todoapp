@@ -29,7 +29,8 @@ func (m *mockTodoRepository) Create(todo *domain.Todo) error {
 
 func (m *mockTodoRepository) GetByID(id uuid.UUID) (*domain.Todo, error) {
 	if todo, ok := m.todos[id]; ok && !todo.IsDeleted() {
-		return todo, nil
+		cp := *todo
+		return &cp, nil
 	}
 	return nil, domain.ErrTodoNotFound
 }
@@ -100,7 +101,8 @@ func newMockConnectionRepositoryForTodo() *mockConnectionRepositoryForTodo {
 
 func (m *mockConnectionRepositoryForTodo) Create(connection *domain.Connection) error {
 	connection.ID = uuid.New()
-	key := connection.UserAID.String() + ":" + connection.UserBID.String()
+	aid, bid := domain.NormalizeUserPair(connection.UserAID, connection.UserBID)
+	key := aid.String() + ":" + bid.String()
 	m.connections[key] = connection
 	return nil
 }
@@ -207,12 +209,77 @@ func (m *mockUserRepositoryForTodo) UpdateLastSeen(id uuid.UUID) error {
 	return nil
 }
 
+// mockGamificationServiceForTodo tracks calls to verify wiring
+type mockGamificationServiceForTodo struct {
+	onTodoCompletedCalls    []uuid.UUID
+	checkAndAwardBadgeCalls []uuid.UUID
+}
+
+func (m *mockGamificationServiceForTodo) CheckAndAwardBadges(userID uuid.UUID) ([]*domain.Badge, error) {
+	m.checkAndAwardBadgeCalls = append(m.checkAndAwardBadgeCalls, userID)
+	return []*domain.Badge{}, nil
+}
+func (m *mockGamificationServiceForTodo) EvaluateBadgeCriteria(userID uuid.UUID, badge *domain.Badge) (bool, error) {
+	return false, nil
+}
+func (m *mockGamificationServiceForTodo) GetUserBadges(userID uuid.UUID) ([]*domain.BadgeWithEarned, error) {
+	return nil, nil
+}
+func (m *mockGamificationServiceForTodo) AwardBadge(userID uuid.UUID, badgeID uuid.UUID) (*domain.UserBadge, error) {
+	return nil, nil
+}
+func (m *mockGamificationServiceForTodo) AwardXP(userID uuid.UUID, amount int, reason string) error {
+	return nil
+}
+func (m *mockGamificationServiceForTodo) GetUserStats(userID uuid.UUID) (*domain.UserStats, error) {
+	return nil, nil
+}
+func (m *mockGamificationServiceForTodo) GetPointsHistory(userID uuid.UUID, limit int) ([]*domain.PointsTransaction, error) {
+	return nil, nil
+}
+func (m *mockGamificationServiceForTodo) OnTodoCompleted(userID uuid.UUID, completedAt time.Time) {
+	m.onTodoCompletedCalls = append(m.onTodoCompletedCalls, userID)
+}
+func (m *mockGamificationServiceForTodo) OnStreakUpdated(userID uuid.UUID, streakDays int) {}
+func (m *mockGamificationServiceForTodo) OnConnectionAdded(userID uuid.UUID)               {}
+
+// mockSharedGoalServiceForTodo tracks calls to verify wiring
+type mockSharedGoalServiceForTodo struct {
+	onTodoCompletedCalls []uuid.UUID
+}
+
+func (m *mockSharedGoalServiceForTodo) CreateGoal(connectionID uuid.UUID, targetType domain.SharedGoalTargetType, targetValue int, rewardDescription string) (*domain.SharedGoal, error) {
+	return nil, nil
+}
+func (m *mockSharedGoalServiceForTodo) UpdateProgress(connectionID uuid.UUID, amount int) error {
+	return nil
+}
+func (m *mockSharedGoalServiceForTodo) CheckCompletion(goalID uuid.UUID) (*domain.SharedGoal, error) {
+	return nil, nil
+}
+func (m *mockSharedGoalServiceForTodo) ListGoals(userID uuid.UUID) ([]*domain.SharedGoal, error) {
+	return nil, nil
+}
+func (m *mockSharedGoalServiceForTodo) OnTodoCompleted(userID uuid.UUID) {
+	m.onTodoCompletedCalls = append(m.onTodoCompletedCalls, userID)
+}
+
 func setupTestTodoService(t *testing.T) (domain.TodoService, *mockTodoRepository, *mockConnectionRepositoryForTodo, *mockUserRepositoryForTodo) {
 	todoRepo := newMockTodoRepository()
 	connRepo := newMockConnectionRepositoryForTodo()
 	userRepo := newMockUserRepositoryForTodo()
-	service := NewTodoService(todoRepo, connRepo, userRepo, nil, nil)
+	service := NewTodoService(todoRepo, connRepo, userRepo, nil, nil, nil)
 	return service, todoRepo, connRepo, userRepo
+}
+
+func setupTestTodoServiceWithGamification(t *testing.T) (domain.TodoService, *mockTodoRepository, *mockUserRepositoryForTodo, *mockGamificationServiceForTodo, *mockSharedGoalServiceForTodo) {
+	todoRepo := newMockTodoRepository()
+	connRepo := newMockConnectionRepositoryForTodo()
+	userRepo := newMockUserRepositoryForTodo()
+	gamificationSvc := &mockGamificationServiceForTodo{}
+	sharedGoalSvc := &mockSharedGoalServiceForTodo{}
+	service := NewTodoService(todoRepo, connRepo, userRepo, gamificationSvc, nil, sharedGoalSvc)
+	return service, todoRepo, userRepo, gamificationSvc, sharedGoalSvc
 }
 
 func TestTodoService_Create_Success(t *testing.T) {
@@ -311,8 +378,8 @@ func TestTodoService_Create_InvalidTitle(t *testing.T) {
 		t.Fatal("Expected error for empty title")
 	}
 
-	if err != domain.ErrInvalidTodoTitle {
-		t.Errorf("Expected ErrInvalidTodoTitle, got %v", err)
+	if err != domain.ErrValidation {
+		t.Errorf("Expected ErrValidation, got %v", err)
 	}
 }
 
@@ -341,8 +408,8 @@ func TestTodoService_Create_TitleTooLong(t *testing.T) {
 		t.Fatal("Expected error for long title")
 	}
 
-	if err != domain.ErrInvalidTodoTitle {
-		t.Errorf("Expected ErrInvalidTodoTitle, got %v", err)
+	if err != domain.ErrValidation {
+		t.Errorf("Expected ErrValidation, got %v", err)
 	}
 }
 
@@ -752,6 +819,77 @@ func TestTodoService_CanTransitionTo(t *testing.T) {
 		if got := todo.CanTransitionTo(tt.to); got != tt.expected {
 			t.Errorf("CanTransitionTo(%s -> %s) = %v, want %v", tt.from, tt.to, got, tt.expected)
 		}
+	}
+}
+
+func TestTodoService_Complete_TriggersCheckAndAwardBadges(t *testing.T) {
+	service, _, userRepo, gamificationSvc, sharedGoalSvc := setupTestTodoServiceWithGamification(t)
+
+	user := &domain.User{
+		Email:       "test@example.com",
+		DisplayName: "Test User",
+		IsActive:    true,
+	}
+	userRepo.Create(user)
+
+	input := domain.CreateTodoInput{
+		Title: "Test Todo",
+	}
+	createdTodo, err := service.Create(user.ID, input)
+	if err != nil {
+		t.Fatalf("Failed to create todo: %v", err)
+	}
+
+	_, err = service.Complete(user.ID, createdTodo.ID, createdTodo.Version)
+	if err != nil {
+		t.Fatalf("Failed to complete todo: %v", err)
+	}
+
+	if len(gamificationSvc.onTodoCompletedCalls) != 1 {
+		t.Fatalf("Expected OnTodoCompleted called once, got %d calls", len(gamificationSvc.onTodoCompletedCalls))
+	}
+	if gamificationSvc.onTodoCompletedCalls[0] != user.ID {
+		t.Errorf("OnTodoCompleted called with wrong userID: got %s, want %s", gamificationSvc.onTodoCompletedCalls[0], user.ID)
+	}
+
+	if len(gamificationSvc.checkAndAwardBadgeCalls) != 1 {
+		t.Fatalf("Expected CheckAndAwardBadges called once, got %d calls", len(gamificationSvc.checkAndAwardBadgeCalls))
+	}
+	if gamificationSvc.checkAndAwardBadgeCalls[0] != user.ID {
+		t.Errorf("CheckAndAwardBadges called with wrong userID: got %s, want %s", gamificationSvc.checkAndAwardBadgeCalls[0], user.ID)
+	}
+
+	if len(sharedGoalSvc.onTodoCompletedCalls) != 1 {
+		t.Fatalf("Expected SharedGoalService.OnTodoCompleted called once, got %d calls", len(sharedGoalSvc.onTodoCompletedCalls))
+	}
+	if sharedGoalSvc.onTodoCompletedCalls[0] != user.ID {
+		t.Errorf("SharedGoalService.OnTodoCompleted called with wrong userID: got %s, want %s", sharedGoalSvc.onTodoCompletedCalls[0], user.ID)
+	}
+}
+
+func TestTodoService_Complete_DoesNotTriggerGamificationOnFailure(t *testing.T) {
+	service, _, userRepo, gamificationSvc, sharedGoalSvc := setupTestTodoServiceWithGamification(t)
+
+	user := &domain.User{
+		Email:       "test@example.com",
+		DisplayName: "Test User",
+		IsActive:    true,
+	}
+	userRepo.Create(user)
+
+	_, err := service.Complete(user.ID, uuid.New(), 1)
+	if err == nil {
+		t.Fatal("Expected error for non-existent todo")
+	}
+
+	if len(gamificationSvc.onTodoCompletedCalls) != 0 {
+		t.Errorf("Expected no gamification calls on failure, got %d", len(gamificationSvc.onTodoCompletedCalls))
+	}
+	if len(gamificationSvc.checkAndAwardBadgeCalls) != 0 {
+		t.Errorf("Expected no badge checks on failure, got %d", len(gamificationSvc.checkAndAwardBadgeCalls))
+	}
+	if len(sharedGoalSvc.onTodoCompletedCalls) != 0 {
+		t.Errorf("Expected no shared goal calls on failure, got %d", len(sharedGoalSvc.onTodoCompletedCalls))
 	}
 }
 

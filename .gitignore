@@ -50,3 +50,10 @@ logs/
 tmp/
 temp/
 *.tmp
+
+# Node
+node_modules/
+
+# Go compiled binaries (backend)
+backend/api
+backend/worker

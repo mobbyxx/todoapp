@@ -15,32 +15,12 @@ import { TodoFilter } from '../../components/TodoFilter';
 import { OfflineIndicator } from '../../components/OfflineIndicator';
 import { FlashList, ListRenderItem } from '@shopify/flash-list';
 import { TodoItem } from '../../components/TodoItem';
-import type { TodoStatus, TodoPriority } from '../../types';
+import type { TodoStatus } from '../../types';
+import Todo from '../../models/Todo';
 
 const ESTIMATED_ITEM_HEIGHT = 100;
 
-interface TodoItemData {
-  id: string;
-  title: string;
-  description: string | null;
-  status: TodoStatus;
-  priority: TodoPriority;
-  dueDate: string | null;
-  createdBy: string;
-  assignedTo: string | null;
-  completedAt: string | null;
-  version: number;
-  tags: string | null;
-  serverId: string | null;
-  isSynced: boolean;
-  syncedAt: number | null;
-  createdAt: number;
-  updatedAt: number;
-  toggleComplete(): Promise<void>;
-  markAsDeleted(): Promise<void>;
-  update(updater: (record: any) => void): Promise<void>;
-  toJSON(): any;
-}
+type TodoItemData = Todo;
 
 export default function TodosScreen() {
   const [selectedFilter, setSelectedFilter] = useState<TodoStatus | 'all'>('all');

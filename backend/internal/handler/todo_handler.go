@@ -26,21 +26,21 @@ func NewTodoHandler(todoService domain.TodoService) *TodoHandler {
 }
 
 type createTodoRequest struct {
-	Title       string             `json:"title" validate:"required,min=1,max=200"`
-	Description string             `json:"description,omitempty" validate:"omitempty,max=2000"`
+	Title       string              `json:"title" validate:"required,min=1,max=200"`
+	Description string              `json:"description,omitempty" validate:"omitempty,max=2000"`
 	Priority    domain.TodoPriority `json:"priority,omitempty" validate:"omitempty,oneof=low medium high urgent"`
-	AssignedTo  *uuid.UUID         `json:"assigned_to,omitempty"`
-	DueDate     *string            `json:"due_date,omitempty"`
+	AssignedTo  *uuid.UUID          `json:"assigned_to,omitempty"`
+	DueDate     *string             `json:"due_date,omitempty"`
 }
 
 type updateTodoRequest struct {
-	Title       string             `json:"title,omitempty" validate:"omitempty,min=1,max=200"`
-	Description string             `json:"description,omitempty" validate:"omitempty,max=2000"`
+	Title       string              `json:"title,omitempty" validate:"omitempty,min=1,max=200"`
+	Description string              `json:"description,omitempty" validate:"omitempty,max=2000"`
 	Status      domain.TodoStatus   `json:"status,omitempty" validate:"omitempty,oneof=pending in_progress completed"`
 	Priority    domain.TodoPriority `json:"priority,omitempty" validate:"omitempty,oneof=low medium high urgent"`
-	AssignedTo  *uuid.UUID         `json:"assigned_to,omitempty"`
-	DueDate     *string            `json:"due_date,omitempty"`
-	Version     int                `json:"version" validate:"required,min=1"`
+	AssignedTo  *uuid.UUID          `json:"assigned_to,omitempty"`
+	DueDate     *string             `json:"due_date,omitempty"`
+	Version     int                 `json:"version" validate:"required,min=1"`
 }
 
 type completeTodoRequest struct {
@@ -401,12 +401,12 @@ func (h *TodoHandler) Complete(w http.ResponseWriter, r *http.Request) {
 func (h *TodoHandler) Routes() chi.Router {
 	r := chi.NewRouter()
 
-	r.Post("/todos", h.Create)
-	r.Get("/todos", h.List)
-	r.Get("/todos/{id}", h.Get)
-	r.Put("/todos/{id}", h.Update)
-	r.Delete("/todos/{id}", h.Delete)
-	r.Post("/todos/{id}/complete", h.Complete)
+	r.Post("/", h.Create)
+	r.Get("/", h.List)
+	r.Get("/{id}", h.Get)
+	r.Put("/{id}", h.Update)
+	r.Delete("/{id}", h.Delete)
+	r.Post("/{id}/complete", h.Complete)
 
 	return r
 }

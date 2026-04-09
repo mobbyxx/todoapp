@@ -49,7 +49,7 @@ func (r *rewardRepository) GetByID(id uuid.UUID) (*domain.Reward, error) {
 	query := `
 		SELECT id, user_id, name, description, cost_points, is_active, created_at, updated_at
 		FROM rewards
-		WHERE id = $1 AND deleted_at IS NULL
+		WHERE id = $1
 	`
 
 	return r.scanReward(r.db.QueryRow(context.Background(), query, id))
@@ -61,7 +61,6 @@ func (r *rewardRepository) GetByUserID(userID uuid.UUID) ([]*domain.Reward, erro
 		FROM rewards
 		WHERE (user_id = $1 OR user_id IS NULL) 
 		  AND is_active = true 
-		  AND deleted_at IS NULL
 		ORDER BY created_at DESC
 	`
 
@@ -78,7 +77,7 @@ func (r *rewardRepository) GetAllActive() ([]*domain.Reward, error) {
 	query := `
 		SELECT id, user_id, name, description, cost_points, is_active, created_at, updated_at
 		FROM rewards
-		WHERE is_active = true AND deleted_at IS NULL
+		WHERE is_active = true
 		ORDER BY created_at DESC
 	`
 
@@ -95,7 +94,7 @@ func (r *rewardRepository) Update(reward *domain.Reward) error {
 	query := `
 		UPDATE rewards
 		SET name = $1, description = $2, cost_points = $3, is_active = $4, updated_at = $5
-		WHERE id = $6 AND deleted_at IS NULL
+		WHERE id = $6
 		RETURNING updated_at
 	`
 
@@ -124,12 +123,11 @@ func (r *rewardRepository) Update(reward *domain.Reward) error {
 
 func (r *rewardRepository) Delete(id uuid.UUID) error {
 	query := `
-		UPDATE rewards
-		SET deleted_at = $1, updated_at = $1
-		WHERE id = $2 AND deleted_at IS NULL
+		DELETE FROM rewards
+		WHERE id = $1
 	`
 
-	result, err := r.db.Exec(context.Background(), query, time.Now(), id)
+	result, err := r.db.Exec(context.Background(), query, id)
 	if err != nil {
 		return err
 	}

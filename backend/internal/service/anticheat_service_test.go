@@ -143,6 +143,7 @@ func TestAntiCheatService_ValidateTodoComplete_AlreadyCompleted(t *testing.T) {
 func TestAntiCheatService_ValidateTodoComplete_RateLimitExceeded(t *testing.T) {
 	service, mr, todoRepo := setupAntiCheatTest(t)
 	defer mr.Close()
+	service.config.MinActionGap = 0
 
 	userID := uuid.New()
 
@@ -223,8 +224,9 @@ func TestAntiCheatService_ValidateTodoComplete_BackdatedTimestamp(t *testing.T) 
 
 	userID := uuid.New()
 	todo := createTestTodo(todoRepo, userID, domain.TodoStatusPending, nil)
+	todo.CreatedAt = time.Now()
 
-	backdatedTime := todo.CreatedAt.Add(-time.Hour)
+	backdatedTime := todo.CreatedAt.Add(-10 * time.Second)
 	err := service.ValidateTodoComplete(userID, todo.ID, backdatedTime)
 	if err != domain.ErrTimestampBackdated {
 		t.Errorf("Expected ErrTimestampBackdated, got: %v", err)
@@ -305,7 +307,7 @@ func TestAntiCheatService_CheckRateLimit_ResetsAfterWindow(t *testing.T) {
 	service, mr, _ := setupAntiCheatTest(t)
 	defer mr.Close()
 
-	service.config.RateLimitWindow = time.Millisecond * 100
+	service.config.RateLimitWindow = time.Second
 
 	userID := uuid.New()
 
@@ -318,7 +320,7 @@ func TestAntiCheatService_CheckRateLimit_ResetsAfterWindow(t *testing.T) {
 		t.Errorf("Expected ErrRateLimitExceeded, got: %v", err)
 	}
 
-	time.Sleep(time.Millisecond * 150)
+	mr.FastForward(1100 * time.Millisecond)
 
 	err = service.CheckRateLimit(userID, domain.ActionTypeTodoComplete)
 	if err != nil {
@@ -464,7 +466,7 @@ func TestAntiCheatService_CheckMinTimeGap_WithPreviousAction(t *testing.T) {
 	service, mr, _ := setupAntiCheatTest(t)
 	defer mr.Close()
 
-	service.config.MinActionGap = time.Millisecond * 100
+	service.config.MinActionGap = time.Second
 
 	userID := uuid.New()
 
@@ -478,7 +480,7 @@ func TestAntiCheatService_CheckMinTimeGap_WithPreviousAction(t *testing.T) {
 		t.Errorf("Expected ErrActionTooFast, got: %v", err)
 	}
 
-	time.Sleep(time.Millisecond * 150)
+	time.Sleep(1100 * time.Millisecond)
 
 	err = service.CheckMinTimeGap(userID, domain.ActionTypeTodoComplete)
 	if err != nil {

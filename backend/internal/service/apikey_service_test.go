@@ -440,7 +440,6 @@ func TestRevokeAPIKey(t *testing.T) {
 func TestListAPIKeys(t *testing.T) {
 	service, _ := setupTestService()
 	user1 := uuid.New()
-	user2 := uuid.New()
 
 	t.Run("returns empty list for user with no keys", func(t *testing.T) {
 		keys, err := service.ListAPIKeys(user1)
@@ -470,6 +469,10 @@ func TestListAPIKeys(t *testing.T) {
 	})
 
 	t.Run("does not return other user's keys", func(t *testing.T) {
+		service, _ := setupTestService()
+		user1 := uuid.New()
+		user2 := uuid.New()
+
 		service.GenerateAPIKey(user1, "User1 Key", []string{"read:todos"}, nil)
 		service.GenerateAPIKey(user2, "User2 Key", []string{"read:todos"}, nil)
 

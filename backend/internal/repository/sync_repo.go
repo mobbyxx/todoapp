@@ -33,6 +33,7 @@ func (r *syncRepository) GetLastSync(userID uuid.UUID) (*domain.SyncRecord, erro
 	var record domain.SyncRecord
 	var lastPhysical, lastLogical int64
 	var errorMsg *string
+	var clientVersion *string
 
 	err := r.db.QueryRow(context.Background(), query, userID).Scan(
 		&record.ID,
@@ -41,7 +42,7 @@ func (r *syncRepository) GetLastSync(userID uuid.UUID) (*domain.SyncRecord, erro
 		&lastLogical,
 		&record.Status,
 		&errorMsg,
-		&record.ClientVersion,
+		&clientVersion,
 		&record.CreatedAt,
 		&record.UpdatedAt,
 	)
@@ -58,6 +59,9 @@ func (r *syncRepository) GetLastSync(userID uuid.UUID) (*domain.SyncRecord, erro
 		LogicalTime:  lastLogical,
 	}
 	record.ErrorMessage = errorMsg
+	if clientVersion != nil {
+		record.ClientVersion = *clientVersion
+	}
 
 	return &record, nil
 }

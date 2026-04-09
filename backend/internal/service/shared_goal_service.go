@@ -9,11 +9,11 @@ import (
 )
 
 type sharedGoalService struct {
-	sharedGoalRepo   domain.SharedGoalRepository
-	connectionRepo   domain.ConnectionRepository
-	connectionSvc    domain.ConnectionService
-	gamificationSvc  domain.GamificationService
-	notificationSvc  domain.NotificationService
+	sharedGoalRepo  domain.SharedGoalRepository
+	connectionRepo  domain.ConnectionRepository
+	connectionSvc   domain.ConnectionService
+	gamificationSvc domain.GamificationService
+	notificationSvc domain.NotificationService
 }
 
 func NewSharedGoalService(
@@ -46,6 +46,7 @@ func (s *sharedGoalService) CreateGoal(connectionID uuid.UUID, targetType domain
 		TargetType:        targetType,
 		TargetValue:       targetValue,
 		RewardDescription: rewardDescription,
+		Status:            domain.SharedGoalStatusActive,
 	}
 
 	if err := s.sharedGoalRepo.Create(goal); err != nil {
