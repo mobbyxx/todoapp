@@ -55,6 +55,9 @@ jobs:
           category: govulncheck
   zap-scan:
     runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - name: Start application
