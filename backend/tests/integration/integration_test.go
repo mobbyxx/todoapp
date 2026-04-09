@@ -38,6 +38,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 
 	s.T().Log("Starting PostgreSQL container...")
 	postgresContainer, err := tcpostgres.RunContainer(s.ctx,
+		testcontainers.WithImage("postgres:16-alpine"),
 		tcpostgres.WithDatabase("todoapp"),
 		tcpostgres.WithUsername("todoapp"),
 		tcpostgres.WithPassword("todoapp"),

@@ -211,7 +211,7 @@ func setupTestTodoService(t *testing.T) (domain.TodoService, *mockTodoRepository
 	todoRepo := newMockTodoRepository()
 	connRepo := newMockConnectionRepositoryForTodo()
 	userRepo := newMockUserRepositoryForTodo()
-	service := NewTodoService(todoRepo, connRepo, userRepo)
+	service := NewTodoService(todoRepo, connRepo, userRepo, nil, nil)
 	return service, todoRepo, connRepo, userRepo
 }
 
@@ -547,8 +547,7 @@ func TestTodoService_Update_InvalidStatusTransition(t *testing.T) {
 	userRepo.Create(user)
 
 	input := domain.CreateTodoInput{
-		Title:  "Test Todo",
-		Status: domain.TodoStatusPending,
+		Title: "Test Todo",
 	}
 	createdTodo, _ := service.Create(user.ID, input)
 
@@ -663,8 +662,7 @@ func TestTodoService_Complete_Success(t *testing.T) {
 	userRepo.Create(user)
 
 	input := domain.CreateTodoInput{
-		Title:  "Test Todo",
-		Status: domain.TodoStatusInProgress,
+		Title: "Test Todo",
 	}
 	createdTodo, _ := service.Create(user.ID, input)
 
@@ -690,11 +688,13 @@ func TestTodoService_Complete_AlreadyCompleted(t *testing.T) {
 	userRepo.Create(user)
 
 	input := domain.CreateTodoInput{
-		Title:  "Test Todo",
-		Status: domain.TodoStatusCompleted,
+		Title: "Test Todo",
 	}
-
 	todo, _ := service.Create(user.ID, input)
+
+	updateInput := domain.UpdateTodoInput{Status: domain.TodoStatusCompleted}
+	service.Update(user.ID, todo.ID, updateInput, todo.Version)
+	todo, _ = service.Get(user.ID, todo.ID)
 
 	_, err := service.Complete(user.ID, todo.ID, todo.Version)
 
@@ -718,8 +718,7 @@ func TestTodoService_Complete_VersionMismatch(t *testing.T) {
 	userRepo.Create(user)
 
 	input := domain.CreateTodoInput{
-		Title:  "Test Todo",
-		Status: domain.TodoStatusInProgress,
+		Title: "Test Todo",
 	}
 	createdTodo, _ := service.Create(user.ID, input)
 

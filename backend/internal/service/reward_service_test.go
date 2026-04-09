@@ -2,6 +2,7 @@ package service
 
 import (
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -11,8 +12,8 @@ import (
 
 type mockRewardRepository struct {
 	mock.Mock
-	rewards      map[uuid.UUID]*domain.Reward
-	redemptions  map[uuid.UUID]*domain.RewardRedemption
+	rewards     map[uuid.UUID]*domain.Reward
+	redemptions map[uuid.UUID]*domain.RewardRedemption
 }
 
 func newMockRewardRepository() *mockRewardRepository {
@@ -129,7 +130,15 @@ func (m *mockGamificationServiceForRewards) GetUserStats(userID uuid.UUID) (*dom
 	return args.Get(0).(*domain.UserStats), args.Error(1)
 }
 
-func (m *mockGamificationServiceForRewards) OnTodoCompleted(userID uuid.UUID, completedAt interface{}) {
+func (m *mockGamificationServiceForRewards) GetPointsHistory(userID uuid.UUID, limit int) ([]*domain.PointsTransaction, error) {
+	args := m.Called(userID, limit)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]*domain.PointsTransaction), args.Error(1)
+}
+
+func (m *mockGamificationServiceForRewards) OnTodoCompleted(userID uuid.UUID, completedAt time.Time) {
 	m.Called(userID, completedAt)
 }
 
@@ -282,16 +291,16 @@ func TestGetMyRewards(t *testing.T) {
 
 	expectedRedemptions := []*domain.RewardRedemption{
 		{
-			ID:         uuid.New(),
-			UserID:     userID,
-			RewardID:   uuid.New(),
-			Status:     domain.RedemptionStatusCompleted,
+			ID:       uuid.New(),
+			UserID:   userID,
+			RewardID: uuid.New(),
+			Status:   domain.RedemptionStatusCompleted,
 		},
 		{
-			ID:         uuid.New(),
-			UserID:     userID,
-			RewardID:   uuid.New(),
-			Status:     domain.RedemptionStatusPending,
+			ID:       uuid.New(),
+			UserID:   userID,
+			RewardID: uuid.New(),
+			Status:   domain.RedemptionStatusPending,
 		},
 	}
 

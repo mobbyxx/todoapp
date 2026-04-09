@@ -230,14 +230,14 @@ func TodoChangeFromTodo(todo *Todo) *TodoChange {
 
 // ConnectionChange represents a connection change for sync (read-only from client)
 type ConnectionChange struct {
-	ID         uuid.UUID        `json:"id"`
-	UserAID    uuid.UUID        `json:"user_a_id"`
-	UserBID    uuid.UUID        `json:"user_b_id"`
-	Status     ConnectionStatus `json:"status"`
-	RequestedBy uuid.UUID       `json:"requested_by"`
-	CreatedAt  time.Time        `json:"created_at"`
-	UpdatedAt  time.Time        `json:"updated_at"`
-	Timestamp  HLC              `json:"timestamp"`
+	ID          uuid.UUID        `json:"id"`
+	UserAID     uuid.UUID        `json:"user_a_id"`
+	UserBID     uuid.UUID        `json:"user_b_id"`
+	Status      ConnectionStatus `json:"status"`
+	RequestedBy uuid.UUID        `json:"requested_by"`
+	CreatedAt   time.Time        `json:"created_at"`
+	UpdatedAt   time.Time        `json:"updated_at"`
+	Timestamp   HLC              `json:"timestamp"`
 }
 
 // SyncPullRequest represents a pull request from client
@@ -259,59 +259,59 @@ type SyncRequest struct {
 
 // SyncResponse represents a sync response
 type SyncResponse struct {
-	Timestamp  HLC              `json:"timestamp"`
-	Changes    ChangeSet        `json:"changes"`
-	Conflicts  []*SyncConflict  `json:"conflicts"`
-	Status     SyncStatus       `json:"status"`
-	ServerTime int64            `json:"server_time"` // Unix milliseconds for client clock skew detection
+	Timestamp  HLC             `json:"timestamp"`
+	Changes    ChangeSet       `json:"changes"`
+	Conflicts  []*SyncConflict `json:"conflicts"`
+	Status     SyncStatus      `json:"status"`
+	ServerTime int64           `json:"server_time"` // Unix milliseconds for client clock skew detection
 }
 
 // SyncConflict represents a detected conflict
 type SyncConflict struct {
-	EntityType   string          `json:"entity_type"`
-	EntityID     uuid.UUID       `json:"entity_id"`
-	LocalVersion *TodoChange     `json:"local_version"`  // Client's version
-	ServerVersion *TodoChange    `json:"server_version"` // Server's version
-	ConflictType string          `json:"conflict_type"`  // "both_modified", "delete_modified", etc.
+	EntityType    string      `json:"entity_type"`
+	EntityID      uuid.UUID   `json:"entity_id"`
+	LocalVersion  *TodoChange `json:"local_version"`  // Client's version
+	ServerVersion *TodoChange `json:"server_version"` // Server's version
+	ConflictType  string      `json:"conflict_type"`  // "both_modified", "delete_modified", etc.
 }
 
 // SyncRepository defines the interface for sync persistence
 type SyncRepository interface {
 	// GetLastSync returns the user's last sync record
 	GetLastSync(userID uuid.UUID) (*SyncRecord, error)
-	
+
 	// UpdateLastSync updates the user's last sync timestamp
 	UpdateLastSync(userID uuid.UUID, timestamp HLC) error
-	
+
 	// GetChangesSince returns all changes since the given timestamp for a user
 	GetChangesSince(userID uuid.UUID, since HLC) (*ChangeSet, error)
-	
+
 	// ApplyChanges applies client changes to the server
 	ApplyChanges(userID uuid.UUID, changes ChangeSet, timestamp HLC) ([]*SyncConflict, error)
-	
+
 	// RecordConflict records a sync conflict for later resolution
 	RecordConflict(conflict *SyncConflictRecord) error
 }
 
 // SyncConflictRecord represents a recorded conflict in the database
 type SyncConflictRecord struct {
-	ID               uuid.UUID       `json:"id"`
-	UserID           uuid.UUID       `json:"user_id"`
-	EntityType       string          `json:"entity_type"`
-	EntityID         uuid.UUID       `json:"entity_id"`
-	LocalVersion     int             `json:"local_version"`
-	RemoteVersion    int             `json:"remote_version"`
-	LocalData        json.RawMessage `json:"local_data"`
-	RemoteData       json.RawMessage `json:"remote_data"`
-	ResolutionStrategy string        `json:"resolution_strategy"`
-	ResolvedData     json.RawMessage `json:"resolved_data,omitempty"`
-	ResolvedAt       *time.Time      `json:"resolved_at,omitempty"`
-	ResolvedBy       *uuid.UUID      `json:"resolved_by,omitempty"`
-	Status           string          `json:"status"`
-	ClientTimestamp  HLC             `json:"client_timestamp"`
-	ServerTimestamp  HLC             `json:"server_timestamp"`
-	CreatedAt        time.Time       `json:"created_at"`
-	UpdatedAt        time.Time       `json:"updated_at"`
+	ID                 uuid.UUID       `json:"id"`
+	UserID             uuid.UUID       `json:"user_id"`
+	EntityType         string          `json:"entity_type"`
+	EntityID           uuid.UUID       `json:"entity_id"`
+	LocalVersion       int             `json:"local_version"`
+	RemoteVersion      int             `json:"remote_version"`
+	LocalData          json.RawMessage `json:"local_data"`
+	RemoteData         json.RawMessage `json:"remote_data"`
+	ResolutionStrategy string          `json:"resolution_strategy"`
+	ResolvedData       json.RawMessage `json:"resolved_data,omitempty"`
+	ResolvedAt         *time.Time      `json:"resolved_at,omitempty"`
+	ResolvedBy         *uuid.UUID      `json:"resolved_by,omitempty"`
+	Status             string          `json:"status"`
+	ClientTimestamp    HLC             `json:"client_timestamp"`
+	ServerTimestamp    HLC             `json:"server_timestamp"`
+	CreatedAt          time.Time       `json:"created_at"`
+	UpdatedAt          time.Time       `json:"updated_at"`
 }
 
 // ConflictStatus defines the possible statuses for a conflict
@@ -345,8 +345,8 @@ var FieldConflictResolution = map[string]ResolutionStrategy{
 
 // ConflictResolution represents a manual conflict resolution
 type ConflictResolution struct {
-	ConflictID   uuid.UUID       `json:"conflict_id" validate:"required"`
-	ResolvedData json.RawMessage `json:"resolved_data" validate:"required"`
+	ConflictID   uuid.UUID          `json:"conflict_id" validate:"required"`
+	ResolvedData json.RawMessage    `json:"resolved_data" validate:"required"`
 	Strategy     ResolutionStrategy `json:"strategy" validate:"omitempty,oneof=local remote merge custom"`
 }
 
@@ -354,16 +354,16 @@ type ConflictResolution struct {
 type SyncService interface {
 	// PullChanges gets server changes since the given timestamp
 	PullChanges(userID uuid.UUID, lastPulledAt HLC) (*ChangeSet, error)
-	
+
 	// PushChanges applies client changes to the server
 	PushChanges(userID uuid.UUID, changes ChangeSet) ([]*SyncConflict, error)
-	
+
 	// GetLastSync gets the user's last sync timestamp
 	GetLastSync(userID uuid.UUID) (HLC, error)
-	
+
 	// UpdateLastSync updates the user's last sync timestamp
 	UpdateLastSync(userID uuid.UUID, timestamp HLC) error
-	
+
 	// Sync performs bidirectional sync (pull + push)
 	Sync(userID uuid.UUID, req SyncRequest) (*SyncResponse, error)
 }
@@ -372,13 +372,13 @@ type SyncService interface {
 type ConflictRepository interface {
 	// GetByID retrieves a conflict by ID
 	GetByID(id uuid.UUID) (*SyncConflictRecord, error)
-	
+
 	// GetUnresolvedByUser retrieves all unresolved conflicts for a user
 	GetUnresolvedByUser(userID uuid.UUID) ([]*SyncConflictRecord, error)
-	
+
 	// UpdateResolution updates a conflict with its resolution
 	UpdateResolution(conflictID uuid.UUID, resolution *ConflictResolution, resolvedBy uuid.UUID) error
-	
+
 	// RecordConflict records a new conflict
 	RecordConflict(conflict *SyncConflictRecord) error
 }
@@ -387,21 +387,24 @@ type ConflictRepository interface {
 type ConflictService interface {
 	// DetectConflicts identifies conflicts between local and remote changes
 	DetectConflicts(userID uuid.UUID, changes ChangeSet) ([]*SyncConflict, error)
-	
+
 	// ResolveConflict resolves a single conflict using the specified strategy
 	ResolveConflict(entityType string, local, remote *TodoChange, strategy ResolutionStrategy) (*TodoChange, error)
-	
+
 	// GetUnresolvedConflicts retrieves all pending conflicts for a user
 	GetUnresolvedConflicts(userID uuid.UUID) ([]*SyncConflictRecord, error)
-	
+
 	// ResolveConflictManually allows user to manually resolve a conflict
 	ResolveConflictManually(conflictID uuid.UUID, resolution ConflictResolution, userID uuid.UUID) error
+
+	// ResolveWithFieldStrategies resolves conflicts per-field using automatic strategies
+	ResolveWithFieldStrategies(local, remote *TodoChange) (*TodoChange, []string, error)
 }
 
 // SyncFilters represents filters for sync operations
 type SyncFilters struct {
-	UserID    *uuid.UUID
-	Since     *HLC
+	UserID     *uuid.UUID
+	Since      *HLC
 	EntityType string
 }
 

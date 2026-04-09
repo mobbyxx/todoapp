@@ -9,9 +9,9 @@ import (
 )
 
 type mockSyncRepository struct {
-	lastSync    map[uuid.UUID]*domain.SyncRecord
-	changes     map[uuid.UUID][]*domain.Todo
-	conflicts   []*domain.SyncConflictRecord
+	lastSync  map[uuid.UUID]*domain.SyncRecord
+	changes   map[uuid.UUID][]*domain.Todo
+	conflicts []*domain.SyncConflictRecord
 }
 
 func newMockSyncRepository() *mockSyncRepository {
@@ -386,11 +386,11 @@ func TestHLC_Compare(t *testing.T) {
 		h2       domain.HLC
 		expected int
 	}{
-		{domain.HLC{1000, 0}, domain.HLC{2000, 0}, -1},
-		{domain.HLC{2000, 0}, domain.HLC{1000, 0}, 1},
-		{domain.HLC{1000, 0}, domain.HLC{1000, 0}, 0},
-		{domain.HLC{1000, 1}, domain.HLC{1000, 2}, -1},
-		{domain.HLC{1000, 2}, domain.HLC{1000, 1}, 1},
+		{domain.HLC{PhysicalTime: 1000, LogicalTime: 0}, domain.HLC{PhysicalTime: 2000, LogicalTime: 0}, -1},
+		{domain.HLC{PhysicalTime: 2000, LogicalTime: 0}, domain.HLC{PhysicalTime: 1000, LogicalTime: 0}, 1},
+		{domain.HLC{PhysicalTime: 1000, LogicalTime: 0}, domain.HLC{PhysicalTime: 1000, LogicalTime: 0}, 0},
+		{domain.HLC{PhysicalTime: 1000, LogicalTime: 1}, domain.HLC{PhysicalTime: 1000, LogicalTime: 2}, -1},
+		{domain.HLC{PhysicalTime: 1000, LogicalTime: 2}, domain.HLC{PhysicalTime: 1000, LogicalTime: 1}, 1},
 	}
 
 	for _, tt := range tests {
@@ -407,10 +407,10 @@ func TestHLC_Less(t *testing.T) {
 		h2       domain.HLC
 		expected bool
 	}{
-		{domain.HLC{1000, 0}, domain.HLC{2000, 0}, true},
-		{domain.HLC{2000, 0}, domain.HLC{1000, 0}, false},
-		{domain.HLC{1000, 0}, domain.HLC{1000, 0}, false},
-		{domain.HLC{1000, 1}, domain.HLC{1000, 2}, true},
+		{domain.HLC{PhysicalTime: 1000, LogicalTime: 0}, domain.HLC{PhysicalTime: 2000, LogicalTime: 0}, true},
+		{domain.HLC{PhysicalTime: 2000, LogicalTime: 0}, domain.HLC{PhysicalTime: 1000, LogicalTime: 0}, false},
+		{domain.HLC{PhysicalTime: 1000, LogicalTime: 0}, domain.HLC{PhysicalTime: 1000, LogicalTime: 0}, false},
+		{domain.HLC{PhysicalTime: 1000, LogicalTime: 1}, domain.HLC{PhysicalTime: 1000, LogicalTime: 2}, true},
 	}
 
 	for _, tt := range tests {

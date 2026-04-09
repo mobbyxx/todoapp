@@ -46,6 +46,11 @@ func (m *mockNotificationQueueRepository) GetPendingCount() (int, error) {
 	return args.Int(0), args.Error(1)
 }
 
+func (m *mockNotificationQueueRepository) UpdateRetry(id uuid.UUID, errorMessage string, scheduledAt time.Time) error {
+	args := m.Called(id, errorMessage, scheduledAt)
+	return args.Error(0)
+}
+
 func TestNewNotificationService(t *testing.T) {
 	mockRepo := new(mockNotificationQueueRepository)
 	svc := NewNotificationService(mockRepo)
