@@ -26,8 +26,11 @@ func newMockConnectionRepository() *mockConnectionRepository {
 }
 
 func (m *mockConnectionRepository) Create(connection *domain.Connection) error {
+	if connection.ID == uuid.Nil {
+		connection.ID = uuid.New()
+	}
 	m.connections[connection.ID] = connection
-	key := fmt.Sprintf("%s:%s", connection.UserID, connection.FriendID)
+	key := fmt.Sprintf("%s:%s", connection.UserAID, connection.UserBID)
 	m.byUsers[key] = connection
 	return nil
 }
@@ -50,7 +53,7 @@ func (m *mockConnectionRepository) GetByUsers(userID, friendID uuid.UUID) (*doma
 func (m *mockConnectionRepository) ListByUser(userID uuid.UUID) ([]domain.Connection, error) {
 	var result []domain.Connection
 	for _, conn := range m.connections {
-		if conn.UserID == userID {
+		if conn.UserAID == userID || conn.UserBID == userID {
 			result = append(result, *conn)
 		}
 	}
@@ -70,11 +73,38 @@ func (m *mockConnectionRepository) Delete(id uuid.UUID) error {
 	return nil
 }
 
-func setupConnectionTestService(t *testing.T) (*ConnectionService, *mockConnectionRepository) {
+func (m *mockConnectionRepository) GetByToken(token string) (*domain.Connection, error) {
+	for _, conn := range m.connections {
+		if conn.InvitationToken == token {
+			return conn, nil
+		}
+	}
+	return nil, domain.ErrConnectionNotFound
+}
+
+func (m *mockConnectionRepository) GetByUserID(userID uuid.UUID) ([]*domain.Connection, error) {
+	var result []*domain.Connection
+	for _, conn := range m.connections {
+		if conn.UserAID == userID || conn.UserBID == userID {
+			result = append(result, conn)
+		}
+	}
+	return result, nil
+}
+
+func (m *mockConnectionRepository) GetByUserPair(userAID, userBID uuid.UUID) (*domain.Connection, error) {
+	key := fmt.Sprintf("%s:%s", userAID, userBID)
+	if conn, ok := m.byUsers[key]; ok {
+		return conn, nil
+	}
+	return nil, domain.ErrConnectionNotFound
+}
+
+func setupConnectionTestService(t *testing.T) (*connectionService, *mockConnectionRepository) {
 	repo := newMockConnectionRepository()
 	secret := "test-secret-key-for-qr-signing"
-	service := NewConnectionService(repo, secret)
-	return service, repo
+	svc := NewConnectionService(repo, nil, nil, nil, secret)
+	return svc.(*connectionService), repo
 }
 
 func TestGenerateQRCode(t *testing.T) {
@@ -117,9 +147,9 @@ func TestGenerateQRCode_SignatureValid(t *testing.T) {
 		t.Fatalf("GenerateQRCode failed: %v", err)
 	}
 
-	err = service.VerifySignature(payload)
+	err = service.validatePayload(payload)
 	if err != nil {
-		t.Errorf("Expected signature to be valid, got error: %v", err)
+		t.Errorf("Expected payload to be valid, got error: %v", err)
 	}
 }
 
@@ -142,15 +172,15 @@ func TestScanQRCode_ValidPayload(t *testing.T) {
 		t.Fatal("Expected connection, got nil")
 	}
 
-	if connection.UserID != userB {
-		t.Errorf("Expected connection user ID %s, got %s", userB.String(), connection.UserID.String())
+	// NormalizeUserPair sorts UUIDs, so verify both users are present
+	hasUserA := connection.UserAID == userA || connection.UserBID == userA
+	hasUserB := connection.UserAID == userB || connection.UserBID == userB
+	if !hasUserA || !hasUserB {
+		t.Errorf("Expected connection to contain both users %s and %s, got UserAID=%s UserBID=%s",
+			userA.String(), userB.String(), connection.UserAID.String(), connection.UserBID.String())
 	}
 
-	if connection.FriendID != userA {
-		t.Errorf("Expected connection friend ID %s, got %s", userA.String(), connection.FriendID.String())
-	}
-
-	if connection.Status != "accepted" {
+	if connection.Status != domain.ConnectionStatusAccepted {
 		t.Errorf("Expected status 'accepted', got %s", connection.Status)
 	}
 
@@ -431,7 +461,7 @@ func TestQRCode_ValidityWindow(t *testing.T) {
 	sig, _ = service.signPayload(stillValidPayload)
 	stillValidPayload.Signature = sig
 
-	err = service.VerifySignature(stillValidPayload)
+	err = service.validatePayload(stillValidPayload)
 	if err != nil {
 		t.Errorf("Expected code to still be valid, got error: %v", err)
 	}

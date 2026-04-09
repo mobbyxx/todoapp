@@ -10,25 +10,28 @@ import (
 	"testing"
 	"time"
 
+	"github.com/alicebob/miniredis/v2"
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/getkin/kin-openapi/openapi3filter"
+	"github.com/getkin/kin-openapi/routers"
 	"github.com/getkin/kin-openapi/routers/gorillamux"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/stretchr/testify/require"
+	goredis "github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/suite"
 	"github.com/user/todo-api/internal/domain"
 	"github.com/user/todo-api/internal/handler"
 	"github.com/user/todo-api/internal/middleware"
+	"github.com/user/todo-api/internal/service"
 )
 
 type ContractTestSuite struct {
 	suite.Suite
-	router         chi.Router
-	userHandler    *handler.UserHandler
-	todoHandler    *handler.TodoHandler
-	openapiRouter  *gorillamux.Router
-	openAPISchema  *openapi3.T
+	router        chi.Router
+	userHandler   *handler.UserHandler
+	todoHandler   *handler.TodoHandler
+	openapiRouter routers.Router
+	openAPISchema *openapi3.T
 }
 
 func TestContractSuite(t *testing.T) {
@@ -45,7 +48,7 @@ func (s *ContractTestSuite) SetupSuite() {
 
 	mockUserService := newMockUserService()
 	mockTodoService := newMockTodoService()
-	mockJWTService := newMockJWTService()
+	mockJWTService := newTestJWTService()
 
 	s.userHandler = handler.NewUserHandler(mockUserService, mockJWTService)
 	s.todoHandler = handler.NewTodoHandler(mockTodoService)
@@ -67,10 +70,10 @@ func (s *ContractTestSuite) loadOpenAPISchema() *openapi3.T {
 				Description: "Local development server",
 			},
 		},
-		Paths: openapi3.Paths{},
+		Paths: openapi3.NewPaths(),
 	}
 
-	schema.Paths["/api/v1/auth/register"] = &openapi3.PathItem{
+	schema.Paths.Set("/api/v1/auth/register", &openapi3.PathItem{
 		Post: &openapi3.Operation{
 			OperationID: "registerUser",
 			Summary:     "Register a new user",
@@ -81,11 +84,11 @@ func (s *ContractTestSuite) loadOpenAPISchema() *openapi3.T {
 						"application/json": &openapi3.MediaType{
 							Schema: &openapi3.SchemaRef{
 								Value: &openapi3.Schema{
-									Type: "object",
+									Type: &openapi3.Types{"object"},
 									Properties: openapi3.Schemas{
-										"email":       &openapi3.SchemaRef{Value: &openapi3.Schema{Type: "string", Format: "email"}},
-										"password":    &openapi3.SchemaRef{Value: &openapi3.Schema{Type: "string", MinLength: 8}},
-										"display_name": &openapi3.SchemaRef{Value: &openapi3.Schema{Type: "string", MinLength: 2, MaxLength: 50}},
+										"email":        &openapi3.SchemaRef{Value: &openapi3.Schema{Type: &openapi3.Types{"string"}, Format: "email"}},
+										"password":     &openapi3.SchemaRef{Value: &openapi3.Schema{Type: &openapi3.Types{"string"}, MinLength: 8}},
+										"display_name": &openapi3.SchemaRef{Value: &openapi3.Schema{Type: &openapi3.Types{"string"}, MinLength: 2, MaxLength: openapi3.Uint64Ptr(50)}},
 									},
 									Required: []string{"email", "password", "display_name"},
 								},
@@ -94,44 +97,46 @@ func (s *ContractTestSuite) loadOpenAPISchema() *openapi3.T {
 					},
 				},
 			},
-			Responses: openapi3.Responses{
-				"201": &openapi3.ResponseRef{
+			Responses: func() *openapi3.Responses {
+				r := openapi3.NewResponses()
+				r.Set("201", &openapi3.ResponseRef{
 					Value: &openapi3.Response{
 						Description: new(string),
 						Content: openapi3.Content{
 							"application/json": &openapi3.MediaType{
 								Schema: &openapi3.SchemaRef{
 									Value: &openapi3.Schema{
-										Type: "object",
+										Type: &openapi3.Types{"object"},
 										Properties: openapi3.Schemas{
 											"user": &openapi3.SchemaRef{
 												Value: &openapi3.Schema{
-													Type: "object",
+													Type: &openapi3.Types{"object"},
 													Properties: openapi3.Schemas{
-														"id":            &openapi3.SchemaRef{Value: &openapi3.Schema{Type: "string", Format: "uuid"}},
-														"email":         &openapi3.SchemaRef{Value: &openapi3.Schema{Type: "string", Format: "email"}},
-														"display_name":  &openapi3.SchemaRef{Value: &openapi3.Schema{Type: "string"}},
-														"created_at":    &openapi3.SchemaRef{Value: &openapi3.Schema{Type: "string", Format: "date-time"}},
+														"id":           &openapi3.SchemaRef{Value: &openapi3.Schema{Type: &openapi3.Types{"string"}, Format: "uuid"}},
+														"email":        &openapi3.SchemaRef{Value: &openapi3.Schema{Type: &openapi3.Types{"string"}, Format: "email"}},
+														"display_name": &openapi3.SchemaRef{Value: &openapi3.Schema{Type: &openapi3.Types{"string"}}},
+														"created_at":   &openapi3.SchemaRef{Value: &openapi3.Schema{Type: &openapi3.Types{"string"}, Format: "date-time"}},
 													},
 												},
 											},
-											"access_token":  &openapi3.SchemaRef{Value: &openapi3.Schema{Type: "string"}},
-											"refresh_token": &openapi3.SchemaRef{Value: &openapi3.Schema{Type: "string"}},
-											"expires_at":    &openapi3.SchemaRef{Value: &openapi3.Schema{Type: "string", Format: "date-time"}},
+											"access_token":  &openapi3.SchemaRef{Value: &openapi3.Schema{Type: &openapi3.Types{"string"}}},
+											"refresh_token": &openapi3.SchemaRef{Value: &openapi3.Schema{Type: &openapi3.Types{"string"}}},
+											"expires_at":    &openapi3.SchemaRef{Value: &openapi3.Schema{Type: &openapi3.Types{"string"}, Format: "date-time"}},
 										},
 									},
 								},
 							},
 						},
 					},
-				},
-				"400": &openapi3.ResponseRef{Value: &openapi3.Response{Description: new(string)}},
-				"409": &openapi3.ResponseRef{Value: &openapi3.Response{Description: new(string)}},
-			},
+				})
+				r.Set("400", &openapi3.ResponseRef{Value: &openapi3.Response{Description: new(string)}})
+				r.Set("409", &openapi3.ResponseRef{Value: &openapi3.Response{Description: new(string)}})
+				return r
+			}(),
 		},
-	}
+	})
 
-	schema.Paths["/api/v1/auth/login"] = &openapi3.PathItem{
+	schema.Paths.Set("/api/v1/auth/login", &openapi3.PathItem{
 		Post: &openapi3.Operation{
 			OperationID: "loginUser",
 			Summary:     "Login a user",
@@ -142,10 +147,10 @@ func (s *ContractTestSuite) loadOpenAPISchema() *openapi3.T {
 						"application/json": &openapi3.MediaType{
 							Schema: &openapi3.SchemaRef{
 								Value: &openapi3.Schema{
-									Type: "object",
+									Type: &openapi3.Types{"object"},
 									Properties: openapi3.Schemas{
-										"email":    &openapi3.SchemaRef{Value: &openapi3.Schema{Type: "string", Format: "email"}},
-										"password": &openapi3.SchemaRef{Value: &openapi3.Schema{Type: "string"}},
+										"email":    &openapi3.SchemaRef{Value: &openapi3.Schema{Type: &openapi3.Types{"string"}, Format: "email"}},
+										"password": &openapi3.SchemaRef{Value: &openapi3.Schema{Type: &openapi3.Types{"string"}}},
 									},
 									Required: []string{"email", "password"},
 								},
@@ -154,42 +159,44 @@ func (s *ContractTestSuite) loadOpenAPISchema() *openapi3.T {
 					},
 				},
 			},
-			Responses: openapi3.Responses{
-				"200": &openapi3.ResponseRef{
+			Responses: func() *openapi3.Responses {
+				r := openapi3.NewResponses()
+				r.Set("200", &openapi3.ResponseRef{
 					Value: &openapi3.Response{
 						Description: new(string),
 						Content: openapi3.Content{
 							"application/json": &openapi3.MediaType{
 								Schema: &openapi3.SchemaRef{
 									Value: &openapi3.Schema{
-										Type: "object",
+										Type: &openapi3.Types{"object"},
 										Properties: openapi3.Schemas{
 											"user": &openapi3.SchemaRef{
 												Value: &openapi3.Schema{
-													Type: "object",
+													Type: &openapi3.Types{"object"},
 													Properties: openapi3.Schemas{
-														"id":           &openapi3.SchemaRef{Value: &openapi3.Schema{Type: "string", Format: "uuid"}},
-														"email":        &openapi3.SchemaRef{Value: &openapi3.Schema{Type: "string", Format: "email"}},
-														"display_name": &openapi3.SchemaRef{Value: &openapi3.Schema{Type: "string"}},
+														"id":           &openapi3.SchemaRef{Value: &openapi3.Schema{Type: &openapi3.Types{"string"}, Format: "uuid"}},
+														"email":        &openapi3.SchemaRef{Value: &openapi3.Schema{Type: &openapi3.Types{"string"}, Format: "email"}},
+														"display_name": &openapi3.SchemaRef{Value: &openapi3.Schema{Type: &openapi3.Types{"string"}}},
 													},
 												},
 											},
-											"access_token":  &openapi3.SchemaRef{Value: &openapi3.Schema{Type: "string"}},
-											"refresh_token": &openapi3.SchemaRef{Value: &openapi3.Schema{Type: "string"}},
-											"expires_at":    &openapi3.SchemaRef{Value: &openapi3.Schema{Type: "string", Format: "date-time"}},
+											"access_token":  &openapi3.SchemaRef{Value: &openapi3.Schema{Type: &openapi3.Types{"string"}}},
+											"refresh_token": &openapi3.SchemaRef{Value: &openapi3.Schema{Type: &openapi3.Types{"string"}}},
+											"expires_at":    &openapi3.SchemaRef{Value: &openapi3.Schema{Type: &openapi3.Types{"string"}, Format: "date-time"}},
 										},
 									},
 								},
 							},
 						},
 					},
-				},
-				"401": &openapi3.ResponseRef{Value: &openapi3.Response{Description: new(string)}},
-			},
+				})
+				r.Set("401", &openapi3.ResponseRef{Value: &openapi3.Response{Description: new(string)}})
+				return r
+			}(),
 		},
-	}
+	})
 
-	schema.Paths["/api/v1/todos"] = &openapi3.PathItem{
+	schema.Paths.Set("/api/v1/todos", &openapi3.PathItem{
 		Get: &openapi3.Operation{
 			OperationID: "listTodos",
 			Summary:     "List all todos for the authenticated user",
@@ -199,7 +206,7 @@ func (s *ContractTestSuite) loadOpenAPISchema() *openapi3.T {
 						Name:        "status",
 						In:          "query",
 						Description: "Filter by status",
-						Schema:      &openapi3.SchemaRef{Value: &openapi3.Schema{Type: "string", Enum: []interface{}{"pending", "in_progress", "completed"}}},
+						Schema:      &openapi3.SchemaRef{Value: &openapi3.Schema{Type: &openapi3.Types{"string"}, Enum: []interface{}{"pending", "in_progress", "completed"}}},
 					},
 				},
 				&openapi3.ParameterRef{
@@ -207,7 +214,7 @@ func (s *ContractTestSuite) loadOpenAPISchema() *openapi3.T {
 						Name:        "page",
 						In:          "query",
 						Description: "Page number",
-						Schema:      &openapi3.SchemaRef{Value: &openapi3.Schema{Type: "integer", Default: 1}},
+						Schema:      &openapi3.SchemaRef{Value: &openapi3.Schema{Type: &openapi3.Types{"integer"}, Default: 1}},
 					},
 				},
 				&openapi3.ParameterRef{
@@ -215,53 +222,55 @@ func (s *ContractTestSuite) loadOpenAPISchema() *openapi3.T {
 						Name:        "page_size",
 						In:          "query",
 						Description: "Items per page",
-						Schema:      &openapi3.SchemaRef{Value: &openapi3.Schema{Type: "integer", Default: 20, Maximum: new(float64)}},
+						Schema:      &openapi3.SchemaRef{Value: &openapi3.Schema{Type: &openapi3.Types{"integer"}, Default: 20, Max: openapi3.Float64Ptr(100)}},
 					},
 				},
 			},
-			Responses: openapi3.Responses{
-				"200": &openapi3.ResponseRef{
+			Responses: func() *openapi3.Responses {
+				r := openapi3.NewResponses()
+				r.Set("200", &openapi3.ResponseRef{
 					Value: &openapi3.Response{
 						Description: new(string),
 						Content: openapi3.Content{
 							"application/json": &openapi3.MediaType{
 								Schema: &openapi3.SchemaRef{
 									Value: &openapi3.Schema{
-										Type: "object",
+										Type: &openapi3.Types{"object"},
 										Properties: openapi3.Schemas{
 											"todos": &openapi3.SchemaRef{
 												Value: &openapi3.Schema{
-													Type: "array",
+													Type: &openapi3.Types{"array"},
 													Items: &openapi3.SchemaRef{
 														Value: &openapi3.Schema{
-															Type: "object",
+															Type: &openapi3.Types{"object"},
 															Properties: openapi3.Schemas{
-																"id":          &openapi3.SchemaRef{Value: &openapi3.Schema{Type: "string", Format: "uuid"}},
-																"title":       &openapi3.SchemaRef{Value: &openapi3.Schema{Type: "string"}},
-																"description": &openapi3.SchemaRef{Value: &openapi3.Schema{Type: "string"}},
-																"status":      &openapi3.SchemaRef{Value: &openapi3.Schema{Type: "string"}},
-																"priority":    &openapi3.SchemaRef{Value: &openapi3.Schema{Type: "string"}},
-																"created_by":  &openapi3.SchemaRef{Value: &openapi3.Schema{Type: "string", Format: "uuid"}},
-																"version":     &openapi3.SchemaRef{Value: &openapi3.Schema{Type: "integer"}},
-																"created_at":  &openapi3.SchemaRef{Value: &openapi3.Schema{Type: "string", Format: "date-time"}},
-																"updated_at":  &openapi3.SchemaRef{Value: &openapi3.Schema{Type: "string", Format: "date-time"}},
+																"id":          &openapi3.SchemaRef{Value: &openapi3.Schema{Type: &openapi3.Types{"string"}, Format: "uuid"}},
+																"title":       &openapi3.SchemaRef{Value: &openapi3.Schema{Type: &openapi3.Types{"string"}}},
+																"description": &openapi3.SchemaRef{Value: &openapi3.Schema{Type: &openapi3.Types{"string"}}},
+																"status":      &openapi3.SchemaRef{Value: &openapi3.Schema{Type: &openapi3.Types{"string"}}},
+																"priority":    &openapi3.SchemaRef{Value: &openapi3.Schema{Type: &openapi3.Types{"string"}}},
+																"created_by":  &openapi3.SchemaRef{Value: &openapi3.Schema{Type: &openapi3.Types{"string"}, Format: "uuid"}},
+																"version":     &openapi3.SchemaRef{Value: &openapi3.Schema{Type: &openapi3.Types{"integer"}}},
+																"created_at":  &openapi3.SchemaRef{Value: &openapi3.Schema{Type: &openapi3.Types{"string"}, Format: "date-time"}},
+																"updated_at":  &openapi3.SchemaRef{Value: &openapi3.Schema{Type: &openapi3.Types{"string"}, Format: "date-time"}},
 															},
 														},
 													},
 												},
 											},
-											"total_count": &openapi3.SchemaRef{Value: &openapi3.Schema{Type: "integer"}},
-											"page":        &openapi3.SchemaRef{Value: &openapi3.Schema{Type: "integer"}},
-											"page_size":   &openapi3.SchemaRef{Value: &openapi3.Schema{Type: "integer"}},
+											"total_count": &openapi3.SchemaRef{Value: &openapi3.Schema{Type: &openapi3.Types{"integer"}}},
+											"page":        &openapi3.SchemaRef{Value: &openapi3.Schema{Type: &openapi3.Types{"integer"}}},
+											"page_size":   &openapi3.SchemaRef{Value: &openapi3.Schema{Type: &openapi3.Types{"integer"}}},
 										},
 									},
 								},
 							},
 						},
 					},
-				},
-				"401": &openapi3.ResponseRef{Value: &openapi3.Response{Description: new(string)}},
-			},
+				})
+				r.Set("401", &openapi3.ResponseRef{Value: &openapi3.Response{Description: new(string)}})
+				return r
+			}(),
 		},
 		Post: &openapi3.Operation{
 			OperationID: "createTodo",
@@ -273,12 +282,12 @@ func (s *ContractTestSuite) loadOpenAPISchema() *openapi3.T {
 						"application/json": &openapi3.MediaType{
 							Schema: &openapi3.SchemaRef{
 								Value: &openapi3.Schema{
-									Type: "object",
+									Type: &openapi3.Types{"object"},
 									Properties: openapi3.Schemas{
-										"title":       &openapi3.SchemaRef{Value: &openapi3.Schema{Type: "string", MinLength: 1, MaxLength: 200}},
-										"description": &openapi3.SchemaRef{Value: &openapi3.Schema{Type: "string", MaxLength: 2000}},
-										"priority":    &openapi3.SchemaRef{Value: &openapi3.Schema{Type: "string", Enum: []interface{}{"low", "medium", "high", "urgent"}}},
-										"assigned_to": &openapi3.SchemaRef{Value: &openapi3.Schema{Type: "string", Format: "uuid"}},
+										"title":       &openapi3.SchemaRef{Value: &openapi3.Schema{Type: &openapi3.Types{"string"}, MinLength: 1, MaxLength: openapi3.Uint64Ptr(200)}},
+										"description": &openapi3.SchemaRef{Value: &openapi3.Schema{Type: &openapi3.Types{"string"}, MaxLength: openapi3.Uint64Ptr(2000)}},
+										"priority":    &openapi3.SchemaRef{Value: &openapi3.Schema{Type: &openapi3.Types{"string"}, Enum: []interface{}{"low", "medium", "high", "urgent"}}},
+										"assigned_to": &openapi3.SchemaRef{Value: &openapi3.Schema{Type: &openapi3.Types{"string"}, Format: "uuid"}},
 									},
 									Required: []string{"title"},
 								},
@@ -287,29 +296,30 @@ func (s *ContractTestSuite) loadOpenAPISchema() *openapi3.T {
 					},
 				},
 			},
-			Responses: openapi3.Responses{
-				"201": &openapi3.ResponseRef{
+			Responses: func() *openapi3.Responses {
+				r := openapi3.NewResponses()
+				r.Set("201", &openapi3.ResponseRef{
 					Value: &openapi3.Response{
 						Description: new(string),
 						Content: openapi3.Content{
 							"application/json": &openapi3.MediaType{
 								Schema: &openapi3.SchemaRef{
 									Value: &openapi3.Schema{
-										Type: "object",
+										Type: &openapi3.Types{"object"},
 										Properties: openapi3.Schemas{
 											"todo": &openapi3.SchemaRef{
 												Value: &openapi3.Schema{
-													Type: "object",
+													Type: &openapi3.Types{"object"},
 													Properties: openapi3.Schemas{
-														"id":          &openapi3.SchemaRef{Value: &openapi3.Schema{Type: "string", Format: "uuid"}},
-														"title":       &openapi3.SchemaRef{Value: &openapi3.Schema{Type: "string"}},
-														"description": &openapi3.SchemaRef{Value: &openapi3.Schema{Type: "string"}},
-														"status":      &openapi3.SchemaRef{Value: &openapi3.Schema{Type: "string"}},
-														"priority":    &openapi3.SchemaRef{Value: &openapi3.Schema{Type: "string"}},
-														"created_by":  &openapi3.SchemaRef{Value: &openapi3.Schema{Type: "string", Format: "uuid"}},
-														"version":     &openapi3.SchemaRef{Value: &openapi3.Schema{Type: "integer"}},
-														"created_at":  &openapi3.SchemaRef{Value: &openapi3.Schema{Type: "string", Format: "date-time"}},
-														"updated_at":  &openapi3.SchemaRef{Value: &openapi3.Schema{Type: "string", Format: "date-time"}},
+														"id":          &openapi3.SchemaRef{Value: &openapi3.Schema{Type: &openapi3.Types{"string"}, Format: "uuid"}},
+														"title":       &openapi3.SchemaRef{Value: &openapi3.Schema{Type: &openapi3.Types{"string"}}},
+														"description": &openapi3.SchemaRef{Value: &openapi3.Schema{Type: &openapi3.Types{"string"}}},
+														"status":      &openapi3.SchemaRef{Value: &openapi3.Schema{Type: &openapi3.Types{"string"}}},
+														"priority":    &openapi3.SchemaRef{Value: &openapi3.Schema{Type: &openapi3.Types{"string"}}},
+														"created_by":  &openapi3.SchemaRef{Value: &openapi3.Schema{Type: &openapi3.Types{"string"}, Format: "uuid"}},
+														"version":     &openapi3.SchemaRef{Value: &openapi3.Schema{Type: &openapi3.Types{"integer"}}},
+														"created_at":  &openapi3.SchemaRef{Value: &openapi3.Schema{Type: &openapi3.Types{"string"}, Format: "date-time"}},
+														"updated_at":  &openapi3.SchemaRef{Value: &openapi3.Schema{Type: &openapi3.Types{"string"}, Format: "date-time"}},
 													},
 												},
 											},
@@ -319,12 +329,13 @@ func (s *ContractTestSuite) loadOpenAPISchema() *openapi3.T {
 							},
 						},
 					},
-				},
-				"400": &openapi3.ResponseRef{Value: &openapi3.Response{Description: new(string)}},
-				"401": &openapi3.ResponseRef{Value: &openapi3.Response{Description: new(string)}},
-			},
+				})
+				r.Set("400", &openapi3.ResponseRef{Value: &openapi3.Response{Description: new(string)}})
+				r.Set("401", &openapi3.ResponseRef{Value: &openapi3.Response{Description: new(string)}})
+				return r
+			}(),
 		},
-	}
+	})
 
 	return schema
 }
@@ -347,10 +358,6 @@ func (s *ContractTestSuite) validateRequest(req *http.Request, body []byte) erro
 		Request:    req,
 		PathParams: pathParams,
 		Route:      route,
-	}
-
-	if len(body) > 0 {
-		requestValidationInput.Body = body
 	}
 
 	if err := openapi3filter.ValidateRequest(context.Background(), requestValidationInput); err != nil {
@@ -389,9 +396,9 @@ func (s *ContractTestSuite) validateResponse(resp *http.Response, body []byte) e
 
 func (s *ContractTestSuite) TestRegisterUser_Contract() {
 	reqBody := map[string]interface{}{
-		"email":         "test@example.com",
-		"password":      "password123",
-		"display_name":  "Test User",
+		"email":        "test@example.com",
+		"password":     "password123",
+		"display_name": "Test User",
 	}
 	jsonBody, _ := json.Marshal(reqBody)
 
@@ -476,9 +483,9 @@ func (s *ContractTestSuite) TestCreateTodo_Contract() {
 
 func (s *ContractTestSuite) TestRegisterUser_InvalidEmail() {
 	reqBody := map[string]interface{}{
-		"email":         "invalid-email",
-		"password":      "password123",
-		"display_name":  "Test User",
+		"email":        "invalid-email",
+		"password":     "password123",
+		"display_name": "Test User",
 	}
 	jsonBody, _ := json.Marshal(reqBody)
 
@@ -553,36 +560,27 @@ func (m *mockUserService) UpdateProfile(id uuid.UUID, displayName string) (*doma
 	return user, nil
 }
 
-type mockJWTService struct {
-	tokens map[string]bool
-}
-
-func newMockJWTService() *mockJWTService {
-	return &mockJWTService{
-		tokens: make(map[string]bool),
+func (m *mockUserService) GetUserByEmail(email string) (*domain.User, error) {
+	for _, user := range m.users {
+		if user.Email == email {
+			return user, nil
+		}
 	}
+	return nil, domain.ErrUserNotFound
 }
 
-func (m *mockJWTService) GenerateTokenPair(ctx context.Context, userID string) (*TokenPair, error) {
-	return &TokenPair{
-		AccessToken:  "mock_access_token",
-		RefreshToken: "mock_refresh_token",
-		ExpiresAt:    time.Now().Add(time.Hour),
-	}, nil
-}
-
-func (m *mockJWTService) ValidateRefreshToken(ctx context.Context, token string) (*TokenPair, error) {
-	return m.GenerateTokenPair(ctx, "")
-}
-
-func (m *mockJWTService) RevokeToken(ctx context.Context, token string) error {
+func (m *mockUserService) UpdateLastSeen(id uuid.UUID) error {
 	return nil
 }
 
-type TokenPair struct {
-	AccessToken  string
-	RefreshToken string
-	ExpiresAt    time.Time
+func (m *mockUserService) SoftDelete(id uuid.UUID) error {
+	return nil
+}
+
+func newTestJWTService() *service.JWTService {
+	mr, _ := miniredis.Run()
+	rc := goredis.NewClient(&goredis.Options{Addr: mr.Addr()})
+	return service.NewJWTService("test-secret-key-for-contract-tests", rc)
 }
 
 type mockTodoService struct {

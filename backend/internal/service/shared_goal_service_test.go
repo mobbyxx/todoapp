@@ -3,6 +3,7 @@ package service
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/user/todo-api/internal/domain"
@@ -126,33 +127,33 @@ func (m *mockConnectionService) RemoveConnection(userID, connectionID uuid.UUID)
 	return nil
 }
 
-type mockConnectionRepository struct {
+type mockConnRepoForGoal struct {
 	connections map[uuid.UUID]*domain.Connection
 }
 
-func newMockConnectionRepository() *mockConnectionRepository {
-	return &mockConnectionRepository{
+func newMockConnRepoForGoal() *mockConnRepoForGoal {
+	return &mockConnRepoForGoal{
 		connections: make(map[uuid.UUID]*domain.Connection),
 	}
 }
 
-func (m *mockConnectionRepository) Create(connection *domain.Connection) error {
+func (m *mockConnRepoForGoal) Create(connection *domain.Connection) error {
 	m.connections[connection.ID] = connection
 	return nil
 }
 
-func (m *mockConnectionRepository) GetByID(id uuid.UUID) (*domain.Connection, error) {
+func (m *mockConnRepoForGoal) GetByID(id uuid.UUID) (*domain.Connection, error) {
 	if conn, ok := m.connections[id]; ok {
 		return conn, nil
 	}
 	return nil, domain.ErrConnectionNotFound
 }
 
-func (m *mockConnectionRepository) GetByToken(token string) (*domain.Connection, error) {
+func (m *mockConnRepoForGoal) GetByToken(token string) (*domain.Connection, error) {
 	return nil, nil
 }
 
-func (m *mockConnectionRepository) GetByUserID(userID uuid.UUID) ([]*domain.Connection, error) {
+func (m *mockConnRepoForGoal) GetByUserID(userID uuid.UUID) ([]*domain.Connection, error) {
 	var result []*domain.Connection
 	for _, conn := range m.connections {
 		if conn.UserAID == userID || conn.UserBID == userID {
@@ -162,16 +163,16 @@ func (m *mockConnectionRepository) GetByUserID(userID uuid.UUID) ([]*domain.Conn
 	return result, nil
 }
 
-func (m *mockConnectionRepository) GetByUserPair(userAID, userBID uuid.UUID) (*domain.Connection, error) {
+func (m *mockConnRepoForGoal) GetByUserPair(userAID, userBID uuid.UUID) (*domain.Connection, error) {
 	return nil, nil
 }
 
-func (m *mockConnectionRepository) Update(connection *domain.Connection) error {
+func (m *mockConnRepoForGoal) Update(connection *domain.Connection) error {
 	m.connections[connection.ID] = connection
 	return nil
 }
 
-func (m *mockConnectionRepository) Delete(id uuid.UUID) error {
+func (m *mockConnRepoForGoal) Delete(id uuid.UUID) error {
 	delete(m.connections, id)
 	return nil
 }
@@ -211,7 +212,7 @@ func (m *mockGamificationService) GetUserStats(userID uuid.UUID) (*domain.UserSt
 	return nil, nil
 }
 
-func (m *mockGamificationService) OnTodoCompleted(userID uuid.UUID, completedAt interface{}) {
+func (m *mockGamificationService) OnTodoCompleted(userID uuid.UUID, completedAt time.Time) {
 }
 
 func (m *mockGamificationService) OnStreakUpdated(userID uuid.UUID, streakDays int) {
@@ -224,12 +225,43 @@ func (m *mockGamificationService) GetPointsHistory(userID uuid.UUID, limit int) 
 	return nil, nil
 }
 
-func setupSharedGoalTestService(t *testing.T) (*sharedGoalService, *mockSharedGoalRepository, *mockConnectionRepository, *mockConnectionService, *mockGamificationService) {
+type mockNotificationServiceForGoal struct{}
+
+func (m *mockNotificationServiceForGoal) QueueNotification(userID uuid.UUID, notificationType domain.NotificationType, title string, body string, data map[string]interface{}, priority int) error {
+	return nil
+}
+func (m *mockNotificationServiceForGoal) QueueConnectionRequest(userID uuid.UUID, fromUserID uuid.UUID, fromUserName string, connectionID uuid.UUID) error {
+	return nil
+}
+func (m *mockNotificationServiceForGoal) QueueConnectionAccepted(userID uuid.UUID, acceptedByID uuid.UUID, acceptedByName string, connectionID uuid.UUID) error {
+	return nil
+}
+func (m *mockNotificationServiceForGoal) QueueTodoAssigned(userID uuid.UUID, todoID uuid.UUID, title string, assignerID uuid.UUID, assignerName string) error {
+	return nil
+}
+func (m *mockNotificationServiceForGoal) QueueTodoCompleted(userID uuid.UUID, todoID uuid.UUID, title string, completedByID uuid.UUID, completedByName string) error {
+	return nil
+}
+func (m *mockNotificationServiceForGoal) QueueBadgeEarned(userID uuid.UUID, badge *domain.Badge) error {
+	return nil
+}
+func (m *mockNotificationServiceForGoal) QueueGoalCompleted(userID uuid.UUID, goalID uuid.UUID, goalName string, reward string) error {
+	return nil
+}
+func (m *mockNotificationServiceForGoal) ProcessQueue(batchSize int) error {
+	return nil
+}
+func (m *mockNotificationServiceForGoal) RetryFailed() error {
+	return nil
+}
+
+func setupSharedGoalTestService(t *testing.T) (*sharedGoalService, *mockSharedGoalRepository, *mockConnRepoForGoal, *mockConnectionService, *mockGamificationService) {
 	goalRepo := newMockSharedGoalRepository()
-	connRepo := newMockConnectionRepository()
+	connRepo := newMockConnRepoForGoal()
 	connSvc := newMockConnectionService()
 	gamificationSvc := newMockGamificationService()
-	service := NewSharedGoalService(goalRepo, connRepo, connSvc, gamificationSvc).(*sharedGoalService)
+	notifSvc := &mockNotificationServiceForGoal{}
+	service := NewSharedGoalService(goalRepo, connRepo, connSvc, gamificationSvc, notifSvc).(*sharedGoalService)
 	return service, goalRepo, connRepo, connSvc, gamificationSvc
 }
 
@@ -337,10 +369,10 @@ func TestUpdateProgress(t *testing.T) {
 	connectionID := uuid.New()
 
 	connRepo.connections[connectionID] = &domain.Connection{
-		ID:     connectionID,
+		ID:      connectionID,
 		UserAID: uuid.New(),
 		UserBID: uuid.New(),
-		Status: domain.ConnectionStatusAccepted,
+		Status:  domain.ConnectionStatusAccepted,
 	}
 
 	goal := &domain.SharedGoal{
@@ -484,12 +516,12 @@ func TestListGoals(t *testing.T) {
 	}
 }
 
-func TestOnTodoCompleted(t *testing.T) {
+func TestOnTodoCompleted_SharedGoal(t *testing.T) {
 	service, goalRepo, _, connSvc, _ := setupSharedGoalTestService(t)
 	userID := uuid.New()
 	connectionID := uuid.New()
 
-	connRepo.connections[connectionID] = &domain.Connection{
+	connSvc.connections[connectionID] = &domain.Connection{
 		ID:      connectionID,
 		UserAID: userID,
 		UserBID: uuid.New(),
@@ -518,7 +550,7 @@ func TestOnTodoCompleted_StreakGoalNotAffected(t *testing.T) {
 	userID := uuid.New()
 	connectionID := uuid.New()
 
-	connRepo.connections[connectionID] = &domain.Connection{
+	connSvc.connections[connectionID] = &domain.Connection{
 		ID:      connectionID,
 		UserAID: userID,
 		UserBID: uuid.New(),
@@ -629,9 +661,9 @@ func TestSharedGoal_GetProgressPercentage(t *testing.T) {
 
 func TestSharedGoal_CanBeUpdated(t *testing.T) {
 	testCases := []struct {
-		name       string
-		status     domain.SharedGoalStatus
-		expectErr  error
+		name      string
+		status    domain.SharedGoalStatus
+		expectErr error
 	}{
 		{"active goal", domain.SharedGoalStatusActive, nil},
 		{"completed goal", domain.SharedGoalStatusCompleted, domain.ErrGoalAlreadyCompleted},

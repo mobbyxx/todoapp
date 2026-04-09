@@ -8,12 +8,12 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/redis/go-redis/v9"
+	goredis "github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/modules/postgres"
-	"github.com/testcontainers/testcontainers-go/modules/redis"
+	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
+	tcredis "github.com/testcontainers/testcontainers-go/modules/redis"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
@@ -22,7 +22,7 @@ type IntegrationTestSuite struct {
 	postgresContainer testcontainers.Container
 	redisContainer    testcontainers.Container
 	DB                *pgxpool.Pool
-	RedisClient       *redis.Client
+	RedisClient       *goredis.Client
 	ctx               context.Context
 }
 
@@ -35,13 +35,12 @@ func TestIntegrationSuite(t *testing.T) {
 
 func (s *IntegrationTestSuite) SetupSuite() {
 	s.ctx = context.Background()
-	
+
 	s.T().Log("Starting PostgreSQL container...")
-	postgresContainer, err := postgres.Run(s.ctx,
-		"postgres:15-alpine",
-		postgres.WithDatabase("todoapp"),
-		postgres.WithUsername("todoapp"),
-		postgres.WithPassword("todoapp"),
+	postgresContainer, err := tcpostgres.RunContainer(s.ctx,
+		tcpostgres.WithDatabase("todoapp"),
+		tcpostgres.WithUsername("todoapp"),
+		tcpostgres.WithPassword("todoapp"),
 		testcontainers.WithWaitStrategy(
 			wait.ForLog("database system is ready to accept connections").
 				WithOccurrence(2).
@@ -52,8 +51,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	s.postgresContainer = postgresContainer
 
 	s.T().Log("Starting Redis container...")
-	redisContainer, err := redis.Run(s.ctx,
-		"redis:7-alpine",
+	redisContainer, err := tcredis.RunContainer(s.ctx,
 		testcontainers.WithWaitStrategy(
 			wait.ForLog("Ready to accept connections").
 				WithStartupTimeout(30*time.Second),
@@ -84,7 +82,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 	s.Require().NoError(err)
 
 	s.T().Log("Connecting to Redis...")
-	s.RedisClient = redis.NewClient(&redis.Options{
+	s.RedisClient = goredis.NewClient(&goredis.Options{
 		Addr: redisAddr,
 	})
 	_, err = s.RedisClient.Ping(s.ctx).Result()
@@ -95,7 +93,7 @@ func (s *IntegrationTestSuite) SetupSuite() {
 
 func (s *IntegrationTestSuite) TearDownSuite() {
 	s.T().Log("Tearing down integration test environment...")
-	
+
 	if s.DB != nil {
 		s.DB.Close()
 	}
@@ -213,7 +211,7 @@ func (s *IntegrationTestSuite) TestUserRepository_Integration() {
 	passwordHash := "hashed_password"
 
 	var userID string
-	err := s.DB.QueryRow(s.ctx, 
+	err := s.DB.QueryRow(s.ctx,
 		`INSERT INTO users (email, password_hash, display_name) 
 		 VALUES ($1, $2, $3) 
 		 RETURNING id`,
@@ -268,14 +266,14 @@ func (s *IntegrationTestSuite) TestTodoRepository_Integration() {
 func (s *IntegrationTestSuite) TestConnectionRepository_Integration() {
 	email1 := fmt.Sprintf("conn_test1_%d@example.com", time.Now().UnixNano())
 	email2 := fmt.Sprintf("conn_test2_%d@example.com", time.Now().UnixNano())
-	
+
 	var userID1, userID2 string
 	err := s.DB.QueryRow(s.ctx,
 		`INSERT INTO users (email, password_hash, display_name) VALUES ($1, $2, $3) RETURNING id`,
 		email1, "hash", "User 1",
 	).Scan(&userID1)
 	s.Require().NoError(err)
-	
+
 	err = s.DB.QueryRow(s.ctx,
 		`INSERT INTO users (email, password_hash, display_name) VALUES ($1, $2, $3) RETURNING id`,
 		email2, "hash", "User 2",

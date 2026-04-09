@@ -16,8 +16,8 @@ import (
 )
 
 type mockTodoService struct {
-	todos        map[uuid.UUID]*domain.Todo
-	connections  map[uuid.UUID][]uuid.UUID
+	todos       map[uuid.UUID]*domain.Todo
+	connections map[uuid.UUID][]uuid.UUID
 }
 
 func newMockTodoService() *mockTodoService {
@@ -460,8 +460,7 @@ func TestTodoHandler_Complete_Success(t *testing.T) {
 
 	userID := uuid.New()
 	input := domain.CreateTodoInput{
-		Title:  "Test Todo",
-		Status: domain.TodoStatusInProgress,
+		Title: "Test Todo",
 	}
 	todo, _ := service.Create(userID, input)
 
@@ -500,8 +499,7 @@ func TestTodoHandler_Complete_VersionMismatch(t *testing.T) {
 
 	userID := uuid.New()
 	input := domain.CreateTodoInput{
-		Title:  "Test Todo",
-		Status: domain.TodoStatusInProgress,
+		Title: "Test Todo",
 	}
 	todo, _ := service.Create(userID, input)
 
@@ -531,8 +529,7 @@ func TestTodoHandler_Complete_InvalidStatusTransition(t *testing.T) {
 
 	userID := uuid.New()
 	input := domain.CreateTodoInput{
-		Title:  "Test Todo",
-		Status: domain.TodoStatusCompleted,
+		Title: "Test Todo",
 	}
 	todo, _ := service.Create(userID, input)
 

@@ -10,22 +10,22 @@ import (
 	"github.com/user/todo-api/internal/domain"
 )
 
-type mockTodoRepository struct {
+type mockTodoRepoForAntiCheat struct {
 	todos map[uuid.UUID]*domain.Todo
 }
 
-func newMockTodoRepository() *mockTodoRepository {
-	return &mockTodoRepository{
+func newMockTodoRepoForAntiCheat() *mockTodoRepoForAntiCheat {
+	return &mockTodoRepoForAntiCheat{
 		todos: make(map[uuid.UUID]*domain.Todo),
 	}
 }
 
-func (m *mockTodoRepository) Create(todo *domain.Todo) error {
+func (m *mockTodoRepoForAntiCheat) Create(todo *domain.Todo) error {
 	m.todos[todo.ID] = todo
 	return nil
 }
 
-func (m *mockTodoRepository) GetByID(id uuid.UUID) (*domain.Todo, error) {
+func (m *mockTodoRepoForAntiCheat) GetByID(id uuid.UUID) (*domain.Todo, error) {
 	todo, ok := m.todos[id]
 	if !ok {
 		return nil, domain.ErrTodoNotFound
@@ -33,7 +33,7 @@ func (m *mockTodoRepository) GetByID(id uuid.UUID) (*domain.Todo, error) {
 	return todo, nil
 }
 
-func (m *mockTodoRepository) GetByUserID(userID uuid.UUID, filters domain.TodoFilters) ([]*domain.Todo, error) {
+func (m *mockTodoRepoForAntiCheat) GetByUserID(userID uuid.UUID, filters domain.TodoFilters) ([]*domain.Todo, error) {
 	var result []*domain.Todo
 	for _, todo := range m.todos {
 		if todo.CreatedBy == userID || (todo.AssignedTo != nil && *todo.AssignedTo == userID) {
@@ -43,7 +43,7 @@ func (m *mockTodoRepository) GetByUserID(userID uuid.UUID, filters domain.TodoFi
 	return result, nil
 }
 
-func (m *mockTodoRepository) Update(todo *domain.Todo) error {
+func (m *mockTodoRepoForAntiCheat) Update(todo *domain.Todo) error {
 	if _, ok := m.todos[todo.ID]; !ok {
 		return domain.ErrTodoNotFound
 	}
@@ -51,12 +51,12 @@ func (m *mockTodoRepository) Update(todo *domain.Todo) error {
 	return nil
 }
 
-func (m *mockTodoRepository) Delete(id uuid.UUID) error {
+func (m *mockTodoRepoForAntiCheat) Delete(id uuid.UUID) error {
 	delete(m.todos, id)
 	return nil
 }
 
-func (m *mockTodoRepository) List(filters domain.TodoFilters) ([]*domain.Todo, int, error) {
+func (m *mockTodoRepoForAntiCheat) List(filters domain.TodoFilters) ([]*domain.Todo, int, error) {
 	var result []*domain.Todo
 	for _, todo := range m.todos {
 		result = append(result, todo)
@@ -64,14 +64,14 @@ func (m *mockTodoRepository) List(filters domain.TodoFilters) ([]*domain.Todo, i
 	return result, len(result), nil
 }
 
-func setupAntiCheatTest(t *testing.T) (*antiCheatService, *miniredis.Miniredis, *mockTodoRepository) {
+func setupAntiCheatTest(t *testing.T) (*antiCheatService, *miniredis.Miniredis, *mockTodoRepoForAntiCheat) {
 	mr := miniredis.RunT(t)
 
 	rdb := redis.NewClient(&redis.Options{
 		Addr: mr.Addr(),
 	})
 
-	todoRepo := newMockTodoRepository()
+	todoRepo := newMockTodoRepoForAntiCheat()
 	config := domain.DefaultAntiCheatConfig()
 
 	service := NewAntiCheatService(rdb, todoRepo, config).(*antiCheatService)
@@ -79,7 +79,7 @@ func setupAntiCheatTest(t *testing.T) (*antiCheatService, *miniredis.Miniredis, 
 	return service, mr, todoRepo
 }
 
-func createTestTodo(repo *mockTodoRepository, userID uuid.UUID, status domain.TodoStatus, assignedTo *uuid.UUID) *domain.Todo {
+func createTestTodo(repo *mockTodoRepoForAntiCheat, userID uuid.UUID, status domain.TodoStatus, assignedTo *uuid.UUID) *domain.Todo {
 	todo := &domain.Todo{
 		ID:          uuid.New(),
 		Title:       "Test Todo",
@@ -331,39 +331,39 @@ func TestAntiCheatService_CheckTimestamp_WithinTolerance(t *testing.T) {
 	defer mr.Close()
 
 	testCases := []struct {
-		name      string
+		name       string
 		clientTime time.Time
-		wantErr   bool
+		wantErr    bool
 	}{
 		{
-			name:      "exact server time",
+			name:       "exact server time",
 			clientTime: time.Now(),
-			wantErr:   false,
+			wantErr:    false,
 		},
 		{
-			name:      "2 minutes behind",
+			name:       "2 minutes behind",
 			clientTime: time.Now().Add(-2 * time.Minute),
-			wantErr:   false,
+			wantErr:    false,
 		},
 		{
-			name:      "2 minutes ahead",
+			name:       "2 minutes ahead",
 			clientTime: time.Now().Add(2 * time.Minute),
-			wantErr:   false,
+			wantErr:    false,
 		},
 		{
-			name:      "6 minutes behind",
+			name:       "6 minutes behind",
 			clientTime: time.Now().Add(-6 * time.Minute),
-			wantErr:   true,
+			wantErr:    true,
 		},
 		{
-			name:      "6 minutes ahead",
+			name:       "6 minutes ahead",
 			clientTime: time.Now().Add(6 * time.Minute),
-			wantErr:   true,
+			wantErr:    true,
 		},
 		{
-			name:      "zero time",
+			name:       "zero time",
 			clientTime: time.Time{},
-			wantErr:   false,
+			wantErr:    false,
 		},
 	}
 

@@ -10,11 +10,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/alicebob/miniredis/v2"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 	"github.com/user/todo-api/internal/domain"
 	"github.com/user/todo-api/internal/handler"
 	"github.com/user/todo-api/internal/middleware"
+	"github.com/user/todo-api/internal/service"
 )
 
 func BenchmarkTodoHandler_Create(b *testing.B) {
@@ -136,13 +139,13 @@ func BenchmarkTodoHandler_Update(b *testing.B) {
 
 func BenchmarkUserHandler_Register(b *testing.B) {
 	mockUserService := newMockUserService()
-	mockJWTService := newMockJWTService()
+	mockJWTService := newMockJWTService(b)
 	h := handler.NewUserHandler(mockUserService, mockJWTService)
 
 	reqBody := map[string]interface{}{
-		"email":         "benchmark@example.com",
-		"password":      "password123",
-		"display_name":  "Benchmark User",
+		"email":        "benchmark@example.com",
+		"password":     "password123",
+		"display_name": "Benchmark User",
 	}
 
 	b.ResetTimer()
@@ -165,7 +168,7 @@ func BenchmarkUserHandler_Register(b *testing.B) {
 
 func BenchmarkUserHandler_Login(b *testing.B) {
 	mockUserService := newMockUserService()
-	mockJWTService := newMockJWTService()
+	mockJWTService := newMockJWTService(b)
 	h := handler.NewUserHandler(mockUserService, mockJWTService)
 
 	_, _ = mockUserService.Register("login@example.com", "password123", "Login User")
@@ -439,30 +442,28 @@ func (m *mockUserServiceBench) UpdateProfile(id uuid.UUID, displayName string) (
 	return nil, nil
 }
 
-type mockJWTServiceBench struct{}
-
-func newMockJWTService() *mockJWTServiceBench {
-	return &mockJWTServiceBench{}
+func (m *mockUserServiceBench) GetUserByEmail(email string) (*domain.User, error) {
+	for _, user := range m.users {
+		if user.Email == email {
+			return user, nil
+		}
+	}
+	return nil, domain.ErrUserNotFound
 }
 
-func (m *mockJWTServiceBench) GenerateTokenPair(ctx context.Context, userID string) (*TokenPairBench, error) {
-	return &TokenPairBench{
-		AccessToken:  "mock_token",
-		RefreshToken: "mock_refresh",
-		ExpiresAt:    time.Now().Add(time.Hour),
-	}, nil
-}
-
-func (m *mockJWTServiceBench) ValidateRefreshToken(ctx context.Context, token string) (*TokenPairBench, error) {
-	return m.GenerateTokenPair(ctx, "")
-}
-
-func (m *mockJWTServiceBench) RevokeToken(ctx context.Context, token string) error {
+func (m *mockUserServiceBench) UpdateLastSeen(id uuid.UUID) error {
 	return nil
 }
 
-type TokenPairBench struct {
-	AccessToken  string
-	RefreshToken string
-	ExpiresAt    time.Time
+func (m *mockUserServiceBench) SoftDelete(id uuid.UUID) error {
+	delete(m.users, id.String())
+	return nil
+}
+
+func newMockJWTService(b *testing.B) *service.JWTService {
+	mr := miniredis.RunT(b)
+	rdb := redis.NewClient(&redis.Options{
+		Addr: mr.Addr(),
+	})
+	return service.NewJWTService("benchmark-secret-key-for-testing", rdb)
 }
