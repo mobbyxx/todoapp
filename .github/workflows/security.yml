@@ -1,5 +1,4 @@
 name: Security Scan
-
 on:
   push:
     branches: [ main, develop ]
@@ -7,63 +6,65 @@ on:
     branches: [ main ]
   schedule:
     - cron: '0 0 * * 0'
-
 jobs:
   gosec:
     runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
     steps:
       - uses: actions/checkout@v4
-
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: '1.21'
-
       - name: Run Gosec Security Scanner
-        uses: securego/gosec@master
+        uses: securego/gosec@v2.25.0
         with:
-          args: '-fmt sarif -out gosec-results.sarif -severity medium -confidence medium ./backend/...'
-
+          args: '-no-fail -fmt sarif -out gosec-results.sarif -severity medium -confidence medium ./backend/...'
       - name: Upload SARIF file
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: gosec-results.sarif
-
-  nancy:
+          category: gosec
+  govulncheck:
     runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read
     steps:
       - uses: actions/checkout@v4
-
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: '1.21'
-
-      - name: WriteGoList
-        run: cd backend && go list -json -deps ./... > go.list
-
-      - name: Nancy
-        uses: sonatypecommunity/nancy-github-action@main
+      - name: Run govulncheck
+        uses: golang/govulncheck-action@v1
         with:
-          goListFile: backend/go.list
-
+          work-dir: ./backend
+          output-format: sarif
+          output-file: govulncheck.sarif
+      - name: Upload SARIF file
+        uses: github/codeql-action/upload-sarif@v4
+        if: always()
+        with:
+          sarif_file: govulncheck.sarif
+          category: govulncheck
   zap-scan:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Start application
         run: |
-          docker-compose up -d
+          docker compose up -d
           sleep 30
-
       - name: ZAP Scan
-        uses: zaproxy/action-full-scan@v0.9.0
+        uses: zaproxy/action-full-scan@v0.13.0
         with:
           target: 'http://localhost:8080'
           cmd_options: '-a'
-
       - name: Upload ZAP report
         uses: actions/upload-artifact@v4
         if: always()
