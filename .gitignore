@@ -1,5 +1,4 @@
 # Go Binary
-api
 *.exe
 *.dll
 *.so
