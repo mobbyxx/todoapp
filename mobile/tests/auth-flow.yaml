@@ -1,0 +1,38 @@
+appId: com.todoapp.mobile
+---
+- launchApp
+
+- assertVisible: "Welcome to Todo App"
+- tapOn: "Sign In"
+
+- assertVisible: "Sign In"
+- tapOn:
+    id: "email-input"
+- inputText: "test@example.com"
+- tapOn:
+    id: "password-input"
+- inputText: "password123"
+- tapOn: "Sign In"
+
+- assertVisible: "Your Todos"
+- tapOn: "Profile"
+
+- assertVisible: "Settings"
+- tapOn: "Sign Out"
+
+- assertVisible: "Welcome to Todo App"
+
+- tapOn: "Create Account"
+- assertVisible: "Create Your Account"
+- tapOn:
+    id: "email-input"
+- inputText: "newuser@example.com"
+- tapOn:
+    id: "password-input"
+- inputText: "password123"
+- tapOn:
+    id: "display-name-input"
+- inputText: "New User"
+- tapOn: "Create Account"
+
+- assertVisible: "Your Todos"

@@ -1,0 +1,73 @@
+appId: com.todoapp.mobile
+---
+- launchApp
+- runFlow:
+    file: auth-flow.yaml
+    when:
+      visible: "Sign In"
+
+- assertVisible: "Your Todos"
+
+- tapOn: "Add Todo"
+- assertVisible: "New Todo"
+- tapOn:
+    id: "title-input"
+- inputText: "Buy groceries"
+- tapOn:
+    id: "description-input"
+- inputText: "Milk, eggs, bread"
+- tapOn: "Priority"
+- tapOn: "High"
+- tapOn: "Save"
+
+- assertVisible: "Buy groceries"
+- assertVisible: "high"
+
+- tapOn: "Buy groceries"
+- assertVisible: "Todo Details"
+- tapOn:
+    id: "edit-button"
+
+- clearText:
+    id: "title-input"
+- tapOn:
+    id: "title-input"
+- inputText: "Buy groceries and snacks"
+- tapOn: "Save"
+
+- assertVisible: "Buy groceries and snacks"
+
+- tapOn: "Buy groceries and snacks"
+- tapOn:
+    id: "complete-button"
+- tapOn: "Confirm"
+
+- assertNotVisible: "Buy groceries and snacks"
+- tapOn: "Completed"
+- assertVisible: "Buy groceries and snacks"
+
+- tapOn: "Buy groceries and snacks"
+- tapOn:
+    id: "delete-button"
+- tapOn: "Delete"
+
+- assertNotVisible: "Buy groceries and snacks"
+
+- tapOn: "Pending"
+- tapOn: "Add Todo"
+- tapOn:
+    id: "title-input"
+- inputText: "Test todo for filtering"
+- tapOn: "Save"
+
+- assertVisible: "Test todo for filtering"
+
+- tapOn:
+    id: "filter-button"
+- tapOn: "High Priority"
+- assertNotVisible: "Test todo for filtering"
+
+- tapOn:
+    id: "filter-button"
+- tapOn: "All"
+- assertVisible: "Test todo for filtering"

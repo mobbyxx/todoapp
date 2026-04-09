@@ -1,0 +1,78 @@
+appId: com.todoapp.mobile
+---
+- launchApp
+- runFlow:
+    file: auth-flow.yaml
+    when:
+      visible: "Sign In"
+
+- assertVisible: "Your Todos"
+
+- tapOn: "Connections"
+- assertVisible: "Your Connections"
+
+- tapOn: "Invite Friend"
+- assertVisible: "Share Invitation"
+- tapOn: "Copy Link"
+- assertVisible: "Link copied!"
+- tapOn: "Done"
+
+- assertVisible: "Your Connections"
+- assertVisible: "Pending"
+
+- runScript: |
+    console.log("Invitation link: https://todo.app/invite/abc123")
+
+- tapOn: "Back"
+- assertVisible: "Your Todos"
+
+- launchApp:
+    appId: com.todoapp.mobile
+    clearState: true
+
+- tapOn: "Sign In"
+- tapOn:
+    id: "email-input"
+- inputText: "friend@example.com"
+- tapOn:
+    id: "password-input"
+- inputText: "password123"
+- tapOn: "Sign In"
+
+- assertVisible: "Your Todos"
+- tapOn: "Connections"
+- tapOn: "Scan QR Code"
+- assertVisible: "Scan Invitation QR"
+
+- runScript: |
+    maestro.tapOn("Enter Code Manually")
+
+- tapOn: "Enter Code Manually"
+- tapOn:
+    id: "invitation-code-input"
+- inputText: "ABC123XYZ"
+- tapOn: "Connect"
+
+- assertVisible: "Connection Request"
+- assertVisible: "Test User wants to connect"
+- tapOn: "Accept"
+
+- assertVisible: "Connected with Test User"
+- tapOn: "Back"
+
+- launchApp:
+    appId: com.todoapp.mobile
+    clearState: true
+
+- tapOn: "Sign In"
+- tapOn:
+    id: "email-input"
+- inputText: "test@example.com"
+- tapOn:
+    id: "password-input"
+- inputText: "password123"
+- tapOn: "Sign In"
+
+- tapOn: "Connections"
+- assertVisible: "friend@example.com"
+- assertVisible: "Connected"

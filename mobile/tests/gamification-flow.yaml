@@ -1,0 +1,94 @@
+appId: com.todoapp.mobile
+---
+- launchApp
+- runFlow:
+    file: auth-flow.yaml
+    when:
+      visible: "Sign In"
+
+- assertVisible: "Your Todos"
+
+- tapOn: "Profile"
+- assertVisible: "Test User"
+- assertVisible: "Level 1"
+- assertVisible: "0 XP"
+
+- tapOn: "Achievements"
+- assertVisible: "Your Achievements"
+- assertVisible: "First Steps"
+- assertVisible: "Complete your first todo"
+
+- tapOn: "Back"
+- tapOn: "Your Todos"
+
+- tapOn: "Add Todo"
+- tapOn:
+    id: "title-input"
+- inputText: "Complete for XP"
+- tapOn: "Save"
+
+- assertVisible: "Complete for XP"
+- tapOn: "Complete for XP"
+- tapOn:
+    id: "complete-button"
+- tapOn: "Confirm"
+
+- assertVisible: "+10 XP"
+- tapOn: "OK"
+
+- tapOn: "Profile"
+- assertVisible: "10 XP"
+
+- runScript: |
+    for (let i = 0; i < 5; i++) {
+      console.log("Creating todo " + (i + 1));
+    }
+
+- tapOn: "Your Todos"
+- repeat:
+    times: 5
+    commands:
+      - tapOn: "Add Todo"
+      - tapOn:
+          id: "title-input"
+      - inputText: "XP Task"
+      - tapOn: "Save"
+      - tapOn: "XP Task"
+      - tapOn:
+          id: "complete-button"
+      - tapOn: "Confirm"
+      - tapOn: "OK"
+
+- tapOn: "Profile"
+- assertVisible: "60 XP"
+
+- tapOn: "Points History"
+- assertVisible: "Points History"
+- assertVisible: "Completed todo"
+- assertVisible: "+10"
+
+- tapOn: "Back"
+- tapOn: "Badges"
+- assertVisible: "Your Badges"
+- assertVisible: "First Todo"
+- assertVisible: "Todo Novice"
+
+- tapOn: "Back"
+- tapOn: "Back"
+- assertVisible: "Current Streak: 1 day"
+
+- tapOn: "Your Todos"
+- tapOn: "Add Todo"
+- tapOn:
+    id: "title-input"
+- inputText: "Keep the streak"
+- tapOn: "Save"
+- tapOn: "Keep the streak"
+- tapOn:
+    id: "complete-button"
+- tapOn: "Confirm"
+- tapOn: "OK"
+
+- tapOn: "Profile"
+- assertVisible: "Current Streak: 1 day"
+- assertVisible: "Longest Streak: 1 day"
